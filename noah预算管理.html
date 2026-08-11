@@ -1,0 +1,1690 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>🏭 生产预算管理系统</title>
+    <style>
+        /* ========== CSS 变量 & 重置 ========== */
+        :root {
+            --primary: #1E3A8A;
+            --primary-light: #3B82F6;
+            --primary-dark: #1E2A5A;
+            --success: #10B981;
+            --warning: #F59E0B;
+            --danger: #EF4444;
+            --bg: #F3F6FC;
+            --card-bg: #FFFFFF;
+            --text-primary: #1F2937;
+            --text-secondary: #6B7280;
+            --text-light: #9CA3AF;
+            --border: #E5E7EB;
+            --shadow: 0 4px 20px rgba(30, 58, 138, 0.08);
+            --radius: 16px;
+            --radius-sm: 10px;
+            --transition: all 0.3s ease;
+            --safe-bottom: env(safe-area-inset-bottom, 0px);
+        }
+        * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
+            background: var(--bg);
+            color: var(--text-primary);
+            min-height: 100vh;
+            padding-bottom: calc(80px + var(--safe-bottom));
+        }
+        ::-webkit-scrollbar { width:4px; height:4px; }
+        ::-webkit-scrollbar-track { background:transparent; }
+        ::-webkit-scrollbar-thumb { background:var(--primary-light); border-radius:4px; }
+        .container { max-width:1024px; margin:0 auto; padding:0 16px; }
+
+        /* ===== 顶部导航 ===== */
+        .app-header {
+            background: var(--primary);
+            color: #fff;
+            padding: 16px 0 14px;
+            position: sticky;
+            top: 0;
+            z-index: 20;
+            box-shadow: 0 4px 20px rgba(30,58,138,0.3);
+        }
+        .app-header .header-inner { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; }
+        .app-header h1 { font-size:22px; font-weight:700; letter-spacing:0.5px; }
+        .app-header h1 small { font-size:14px; font-weight:400; opacity:0.8; margin-left:8px; }
+        .app-header .header-date { font-size:14px; opacity:0.85; background:rgba(255,255,255,0.12); padding:4px 16px; border-radius:20px; backdrop-filter:blur(4px); }
+
+        /* ===== 主布局 ===== */
+        .page { display:none; animation:fadeUp 0.3s ease; }
+        .page.active { display:block; }
+        @keyframes fadeUp { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
+
+        .section-title {
+            font-size:20px; font-weight:700; margin:20px 0 14px; display:flex; align-items:center; gap:8px; color:var(--text-primary); flex-wrap:wrap;
+        }
+        .card {
+            background:var(--card-bg); border-radius:var(--radius); box-shadow:var(--shadow); padding:18px 20px; margin-bottom:16px; transition:var(--transition);
+        }
+        .card:hover { box-shadow:0 8px 30px rgba(30,58,138,0.12); }
+        .flex-between { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; }
+        .btn {
+            border:none; padding:8px 18px; border-radius:var(--radius-sm); font-weight:600; cursor:pointer; transition:var(--transition);
+            font-size:14px; display:inline-flex; align-items:center; gap:6px;
+        }
+        .btn-primary { background:var(--primary); color:#fff; }
+        .btn-primary:hover { background:var(--primary-dark); transform:translateY(-1px); }
+        .btn-success { background:var(--success); color:#fff; }
+        .btn-success:hover { background:#059669; }
+        .btn-warning { background:var(--warning); color:#fff; }
+        .btn-danger { background:var(--danger); color:#fff; }
+        .btn-outline { background:transparent; border:2px solid var(--border); color:var(--text-secondary); }
+        .btn-outline:hover { border-color:var(--primary); color:var(--primary); }
+        .btn-sm { padding:4px 12px; font-size:12px; }
+
+        .form-group { margin-bottom:14px; }
+        .form-group label { display:block; font-size:14px; font-weight:600; margin-bottom:4px; color:var(--text-secondary); }
+        .form-group input, .form-group select, .form-group textarea {
+            width:100%; padding:10px 14px; border:2px solid var(--border); border-radius:var(--radius-sm);
+            font-size:14px; font-family:inherit; transition:var(--transition); background:#fff; color:var(--text-primary); outline:none;
+        }
+        .form-group input:focus, .form-group select:focus { border-color:var(--primary-light); box-shadow:0 0 0 3px rgba(59,130,246,0.15); }
+
+        .table-wrap { overflow-x:auto; }
+        table { width:100%; border-collapse:collapse; font-size:14px; }
+        th { background:var(--bg); text-align:left; padding:10px 12px; font-weight:600; color:var(--text-secondary); border-bottom:2px solid var(--border); }
+        td { padding:10px 12px; border-bottom:1px solid var(--border); vertical-align:middle; }
+        tr:hover td { background:#FAFBFF; }
+
+        .tag { display:inline-block; padding:2px 12px; border-radius:12px; font-size:12px; font-weight:600; }
+        .tag-warning { background:#FEF3C7; color:#92400E; }
+        .tag-danger { background:#FEE2E2; color:#991B1B; }
+        .tag-success { background:#D1FAE5; color:#065F46; }
+
+        .progress-bar { width:100%; height:6px; background:var(--border); border-radius:4px; overflow:hidden; margin-top:4px; }
+        .progress-bar .fill { height:100%; border-radius:4px; transition:width 0.4s; }
+        .fill.green { background:var(--success); }
+        .fill.yellow { background:var(--warning); }
+        .fill.red { background:var(--danger); }
+
+        .alert-card { border-left:4px solid var(--warning); padding:12px 16px; background:#FFFBEB; border-radius:var(--radius-sm); margin-bottom:8px; }
+        .alert-card.danger { border-left-color:var(--danger); background:#FEF2F2; }
+        .alert-card.success { border-left-color:var(--success); background:#ECFDF5; }
+
+        .empty-state { text-align:center; padding:40px 20px; color:var(--text-light); }
+        .empty-state .icon { font-size:48px; margin-bottom:12px; }
+
+        /* 模态框 */
+        .modal-overlay {
+            position:fixed; inset:0; background:rgba(0,0,0,0.5); backdrop-filter:blur(4px);
+            display:none; align-items:center; justify-content:center; z-index:100; animation:fadeIn 0.25s ease; padding:16px;
+        }
+        .modal-overlay.show { display:flex; }
+        @keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
+        .modal-content {
+            background:var(--card-bg); border-radius:var(--radius); max-width:700px; width:100%; max-height:90vh;
+            overflow-y:auto; padding:24px 28px; animation:slideUp 0.3s ease; box-shadow:0 20px 60px rgba(0,0,0,0.2); position:relative;
+        }
+        @keyframes slideUp { from { transform:translateY(30px); opacity:0; } to { transform:translateY(0); opacity:1; } }
+        .modal-content .modal-close {
+            position:absolute; top:12px; right:16px; font-size:24px; background:none; border:none; color:var(--text-light);
+            cursor:pointer; padding:4px 8px; border-radius:8px;
+        }
+        .modal-content .modal-close:hover { background:var(--bg); }
+        .modal-content h2 { font-size:20px; font-weight:700; margin-bottom:18px; padding-right:30px; }
+        .modal-content .text-muted { color:var(--text-light); }
+        .modal-content .text-small { font-size:13px; }
+
+        /* 底部导航 */
+        .bottom-nav {
+            position:fixed; bottom:0; left:0; right:0; background:var(--card-bg);
+            display:flex; justify-content:space-around; align-items:center; padding:6px 0 calc(6px + var(--safe-bottom));
+            box-shadow:0 -2px 20px rgba(0,0,0,0.06); border-top:1px solid var(--border); z-index:50;
+            backdrop-filter:blur(12px); background:rgba(255,255,255,0.96);
+        }
+        .bottom-nav .nav-item {
+            display:flex; flex-direction:column; align-items:center; background:none; border:none; font-size:12px;
+            color:var(--text-light); cursor:pointer; padding:4px 12px; transition:var(--transition); gap:2px; font-weight:500;
+        }
+        .bottom-nav .nav-item .nav-icon { font-size:22px; line-height:1.2; }
+        .bottom-nav .nav-item.active { color:var(--primary); }
+        .bottom-nav .nav-item .nav-label { font-size:10px; letter-spacing:0.3px; }
+
+        /* Toast */
+        .toast {
+            position:fixed; bottom:100px; left:50%; transform:translateX(-50%) translateY(20px);
+            background:var(--text-primary); color:#fff; padding:12px 24px; border-radius:var(--radius-sm);
+            font-size:14px; font-weight:500; box-shadow:0 8px 30px rgba(0,0,0,0.2);
+            opacity:0; transition:all 0.4s ease; z-index:200; pointer-events:none; white-space:nowrap; max-width:90%;
+        }
+        .toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+        .toast.success { background:var(--success); }
+        .toast.error { background:var(--danger); }
+        .toast.warning { background:var(--warning); }
+
+        /* 批次卡片 */
+        .batch-card {
+            border-left:4px solid var(--primary-light); margin-bottom:12px; padding:14px 16px;
+            background:#FAFBFF; border-radius:var(--radius-sm); transition:var(--transition); cursor:pointer;
+        }
+        .batch-card:hover { background:#F0F5FF; }
+        .batch-card .batch-header { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; }
+        .batch-card .batch-name { font-weight:700; font-size:16px; }
+
+        /* 类别管理列表 */
+        .category-item { display:flex; justify-content:space-between; align-items:center; padding:8px 12px; border-bottom:1px solid var(--border); }
+        .category-item:last-child { border-bottom:none; }
+        .category-item .cat-name { font-weight:500; }
+        .category-item .cat-usage { font-size:12px; color:var(--text-light); margin-right:12px; }
+
+        /* 响应式 */
+        @media (max-width:640px) {
+            .app-header h1 { font-size:18px; }
+            .app-header h1 small { font-size:12px; }
+            .container { padding:0 12px; }
+            .modal-content { padding:20px 16px; }
+            .table-wrap { font-size:12px; }
+            th, td { padding:6px 8px; }
+        }
+        .text-muted { color:var(--text-light); }
+        .text-small { font-size:13px; }
+    </style>
+</head>
+<body>
+
+    <!-- ====== 顶部导航 ====== -->
+    <header class="app-header">
+        <div class="container">
+            <div class="header-inner">
+                <h1>🏭 生产预算 <small>小型企业版</small></h1>
+                <span class="header-date" id="headerDate"></span>
+            </div>
+        </div>
+    </header>
+
+    <!-- ====== 主容器 ====== -->
+    <main class="container">
+
+        <!-- ===== 批次管理 ===== -->
+        <section class="page active" id="pageBatches">
+            <div class="flex-between section-title">
+                <span>📦 批次预算管理</span>
+                <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                    <button class="btn btn-outline" id="btnManageBatchCategories">⚙️ 管理类别</button>
+                    <button class="btn btn-success" id="btnDownloadAllBatches">📥 下载全部批次</button>
+                    <button class="btn btn-primary" id="btnAddBatch">+ 新建批次</button>
+                </div>
+            </div>
+            <div class="card" style="padding:12px 16px;">
+                <div class="flex-between">
+                    <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+                        <label style="font-weight:600; font-size:14px;">🔍 筛选批次：</label>
+                        <input type="text" id="batchFilter" placeholder="批次名称/编号" style="padding:6px 12px; border:2px solid var(--border); border-radius:8px; font-size:14px; width:200px;" />
+                        <button class="btn btn-primary btn-sm" id="btnFilterBatch">筛选</button>
+                        <button class="btn btn-outline btn-sm" id="btnClearFilter">清除</button>
+                    </div>
+                    <span class="text-muted text-small" id="batchCount">共 0 个批次</span>
+                </div>
+            </div>
+            <div id="batchListContainer"></div>
+        </section>
+
+        <!-- ===== 月度支出预算 ===== -->
+        <section class="page" id="pageExpenses">
+            <div class="flex-between section-title">
+                <span>📅 月度支出预算</span>
+                <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                    <button class="btn btn-outline" id="btnManageMonthlyCategories">⚙️ 管理类别</button>
+                    <button class="btn btn-success" id="btnDownloadAllMonthly">📥 下载全部月度</button>
+                    <button class="btn btn-primary" id="btnAddMonthlyBudget">+ 新建月度预算</button>
+                </div>
+            </div>
+            <div id="monthlyBudgetList"></div>
+        </section>
+
+        <!-- ===== 预警看板 ===== -->
+        <section class="page" id="pageAlerts">
+            <div class="section-title"><span>🚨 预警看板</span></div>
+            <div id="alertBoard"></div>
+        </section>
+
+    </main>
+
+    <!-- ====== 底部导航 ====== -->
+    <nav class="bottom-nav" id="bottomNav">
+        <button class="nav-item active" data-page="pageBatches"><span class="nav-icon">📦</span><span class="nav-label">批次</span></button>
+        <button class="nav-item" data-page="pageExpenses"><span class="nav-icon">📅</span><span class="nav-label">支出</span></button>
+        <button class="nav-item" data-page="pageAlerts"><span class="nav-icon">🚨</span><span class="nav-label">预警</span></button>
+    </nav>
+
+    <!-- ====== Toast ====== -->
+    <div class="toast" id="toast"></div>
+
+    <!-- ============================================================ -->
+    <!-- 模态框 -->
+    <!-- ============================================================ -->
+
+    <!-- 新建批次 -->
+    <div class="modal-overlay" id="modalBatch">
+        <div class="modal-content">
+            <button class="modal-close" id="closeBatchModal">✕</button>
+            <h2>📦 新建批次预算</h2>
+            <form id="batchForm">
+                <div class="form-group">
+                    <label>批次名称 / 编号 *</label>
+                    <input type="text" id="batchName" placeholder="如：B202508-01" required />
+                </div>
+                <div class="form-group">
+                    <label>预算项（按类别输入预算金额）</label>
+                    <div id="budgetItemsContainer"></div>
+                </div>
+                <button type="submit" class="btn btn-primary" style="width:100%; justify-content:center;">保存批次预算</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- 编辑批次预算 -->
+    <div class="modal-overlay" id="modalEditBatch">
+        <div class="modal-content">
+            <button class="modal-close" id="closeEditBatchModal">✕</button>
+            <h2>✏️ 编辑批次预算</h2>
+            <form id="editBatchForm">
+                <input type="hidden" id="editBatchId" />
+                <div class="form-group">
+                    <label>批次名称</label>
+                    <input type="text" id="editBatchName" disabled style="background:#f3f4f6;" />
+                </div>
+                <div class="form-group">
+                    <label>预算项（修改金额，0表示移除该项）</label>
+                    <div id="editBudgetItemsContainer"></div>
+                </div>
+                <button type="submit" class="btn btn-warning" style="width:100%; justify-content:center;">更新预算</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- 录入批次实际支出 -->
+    <div class="modal-overlay" id="modalBatchActual">
+        <div class="modal-content">
+            <button class="modal-close" id="closeBatchActualModal">✕</button>
+            <h2>📝 录入批次实际支出</h2>
+            <p style="margin-bottom:12px; color:var(--text-secondary);" id="batchActualTitle">批次：</p>
+            <form id="batchActualForm">
+                <input type="hidden" id="batchActualId" />
+                <div class="form-group">
+                    <label>费用类别 *</label>
+                    <select id="batchActualCategory" required></select>
+                </div>
+                <div class="form-group">
+                    <label>金额 (¥) *</label>
+                    <input type="number" id="batchActualAmount" placeholder="0.00" step="0.01" min="0.01" required />
+                </div>
+                <div class="form-group">
+                    <label>日期 *</label>
+                    <input type="date" id="batchActualDate" required />
+                </div>
+                <button type="submit" class="btn btn-success" style="width:100%; justify-content:center;">保存支出</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- 新建月度预算 -->
+    <div class="modal-overlay" id="modalMonthlyBudget">
+        <div class="modal-content">
+            <button class="modal-close" id="closeMonthlyModal">✕</button>
+            <h2>📅 新建月度支出预算</h2>
+            <form id="monthlyBudgetForm">
+                <div class="form-group">
+                    <label>月份 *</label>
+                    <input type="month" id="monthlyMonth" required />
+                </div>
+                <div class="form-group">
+                    <label>预算项</label>
+                    <div id="monthlyItemsContainer"></div>
+                </div>
+                <button type="submit" class="btn btn-primary" style="width:100%; justify-content:center;">保存月度预算</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- 编辑月度预算 -->
+    <div class="modal-overlay" id="modalEditMonthly">
+        <div class="modal-content">
+            <button class="modal-close" id="closeEditMonthlyModal">✕</button>
+            <h2>✏️ 编辑月度支出预算</h2>
+            <form id="editMonthlyForm">
+                <input type="hidden" id="editMonthlyMonth" />
+                <div class="form-group">
+                    <label>月份</label>
+                    <input type="text" id="editMonthlyMonthDisplay" disabled style="background:#f3f4f6;" />
+                </div>
+                <div class="form-group">
+                    <label>预算项（修改金额，0表示移除该项）</label>
+                    <div id="editMonthlyItemsContainer"></div>
+                </div>
+                <button type="submit" class="btn btn-warning" style="width:100%; justify-content:center;">更新预算</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- 录入月度实际支出 -->
+    <div class="modal-overlay" id="modalMonthlyActual">
+        <div class="modal-content">
+            <button class="modal-close" id="closeMonthlyActualModal">✕</button>
+            <h2>📝 录入月度实际支出</h2>
+            <p style="margin-bottom:12px; color:var(--text-secondary);" id="monthlyActualTitle">月份：</p>
+            <form id="monthlyActualForm">
+                <input type="hidden" id="monthlyActualMonth" />
+                <div class="form-group">
+                    <label>费用类别 *</label>
+                    <select id="monthlyActualCategory" required></select>
+                </div>
+                <div class="form-group">
+                    <label>金额 (¥) *</label>
+                    <input type="number" id="monthlyActualAmount" placeholder="0.00" step="0.01" min="0.01" required />
+                </div>
+                <div class="form-group">
+                    <label>日期 *</label>
+                    <input type="date" id="monthlyActualDate" required />
+                </div>
+                <button type="submit" class="btn btn-success" style="width:100%; justify-content:center;">保存支出</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- 管理批次类别 -->
+    <div class="modal-overlay" id="modalBatchCategoryManager">
+        <div class="modal-content">
+            <button class="modal-close" id="closeBatchCategoryModal">✕</button>
+            <h2>⚙️ 管理批次类别</h2>
+            <p class="text-muted text-small" style="margin-bottom:12px;">添加或删除批次预算类别。删除不会影响已有批次的数据。</p>
+            <div style="display:flex; gap:8px; margin-bottom:16px;">
+                <input type="text" id="newBatchCategoryInput" placeholder="输入新类别名称（如：螺丝）" style="flex:1; padding:8px 12px; border:2px solid var(--border); border-radius:6px; font-size:14px;" />
+                <button class="btn btn-primary" id="btnAddBatchCategory">+ 添加</button>
+            </div>
+            <div id="batchCategoryListContainer"></div>
+            <div style="margin-top:16px; display:flex; justify-content:flex-end;">
+                <button class="btn btn-outline" onclick="closeBatchCategoryModal()">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 管理月度类别 -->
+    <div class="modal-overlay" id="modalMonthlyCategoryManager">
+        <div class="modal-content">
+            <button class="modal-close" id="closeMonthlyCategoryModal">✕</button>
+            <h2>⚙️ 管理月度类别</h2>
+            <p class="text-muted text-small" style="margin-bottom:12px;">添加或删除月度支出类别。删除不会影响已有月份的数据。</p>
+            <div style="display:flex; gap:8px; margin-bottom:16px;">
+                <input type="text" id="newMonthlyCategoryInput" placeholder="输入新类别名称（如：团建费）" style="flex:1; padding:8px 12px; border:2px solid var(--border); border-radius:6px; font-size:14px;" />
+                <button class="btn btn-primary" id="btnAddMonthlyCategory">+ 添加</button>
+            </div>
+            <div id="monthlyCategoryListContainer"></div>
+            <div style="margin-top:16px; display:flex; justify-content:flex-end;">
+                <button class="btn btn-outline" onclick="closeMonthlyCategoryModal()">关闭</button>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- ============================================================ -->
+    <!-- JavaScript -->
+    <!-- ============================================================ -->
+    <script>
+        // ============================================================
+        //  全局配置 & 数据
+        // ============================================================
+
+        // ---- 批次类别（可动态管理） ----
+        let batchCategories = [];
+        const DEFAULT_BATCH_CATEGORIES = ['不锈钢板', '不锈钢管', '玻璃', '酸洗', '镀色', '激光', '外购成品', '包装', '配件'];
+
+        function loadBatchCategories() {
+            try {
+                const raw = localStorage.getItem('prod_batch_categories');
+                if (raw) {
+                    const parsed = JSON.parse(raw);
+                    if (Array.isArray(parsed) && parsed.length > 0) {
+                        batchCategories = parsed;
+                        return;
+                    }
+                }
+                batchCategories = [...DEFAULT_BATCH_CATEGORIES];
+                saveBatchCategories();
+            } catch (e) {
+                batchCategories = [...DEFAULT_BATCH_CATEGORIES];
+                saveBatchCategories();
+            }
+        }
+
+        function saveBatchCategories() {
+            localStorage.setItem('prod_batch_categories', JSON.stringify(batchCategories));
+        }
+
+        function getBatchCategories() { return batchCategories; }
+
+        // ---- 月度类别（可动态管理） ----
+        let monthlyCategories = [];
+        const DEFAULT_MONTHLY_CATEGORIES = [
+            '办公费用', '报销', '房租', '水电', '社保',
+            '宁波办公室工资', '其他管理费用', '货代费', '佣金', '广告费',
+            '展会费用', '其他销售费用', '宣城办公费', '宣城工资', '低值易耗品',
+            '员工餐', '氩气', '维修保养', '缠绕膜', '玻璃珠', '快递费'
+        ];
+
+        function loadMonthlyCategories() {
+            try {
+                const raw = localStorage.getItem('prod_monthly_categories');
+                if (raw) {
+                    const parsed = JSON.parse(raw);
+                    if (Array.isArray(parsed) && parsed.length > 0) {
+                        monthlyCategories = parsed;
+                        return;
+                    }
+                }
+                monthlyCategories = [...DEFAULT_MONTHLY_CATEGORIES];
+                saveMonthlyCategories();
+            } catch (e) {
+                monthlyCategories = [...DEFAULT_MONTHLY_CATEGORIES];
+                saveMonthlyCategories();
+            }
+        }
+
+        function saveMonthlyCategories() {
+            localStorage.setItem('prod_monthly_categories', JSON.stringify(monthlyCategories));
+        }
+
+        function getMonthlyCategories() { return monthlyCategories; }
+
+        // ---- 批次数据 & 月度数据 ----
+        let batches = [];
+        let monthlyBudgets = [];
+
+        function loadData() {
+            try {
+                const rawB = localStorage.getItem('prod_batches');
+                batches = rawB ? JSON.parse(rawB) : getSampleBatches();
+                const rawM = localStorage.getItem('prod_monthly');
+                monthlyBudgets = rawM ? JSON.parse(rawM) : getSampleMonthly();
+                saveData();
+            } catch (e) {
+                batches = getSampleBatches();
+                monthlyBudgets = getSampleMonthly();
+                saveData();
+            }
+        }
+
+        function saveData() {
+            localStorage.setItem('prod_batches', JSON.stringify(batches));
+            localStorage.setItem('prod_monthly', JSON.stringify(monthlyBudgets));
+        }
+
+        function getSampleBatches() {
+            return [{
+                id: 'batch1',
+                name: 'B202508-01 (客户A)',
+                budgetItems: [
+                    { category: '不锈钢板', budget: 12000 },
+                    { category: '不锈钢管', budget: 8000 },
+                    { category: '玻璃', budget: 5000 },
+                    { category: '酸洗', budget: 3000 },
+                    { category: '镀色', budget: 4000 },
+                    { category: '激光', budget: 2500 },
+                    { category: '外购成品', budget: 6000 },
+                    { category: '包装', budget: 1500 },
+                    { category: '配件', budget: 2200 }
+                ],
+                actuals: [
+                    { category: '不锈钢板', amount: 11000, date: '2025-08-05' },
+                    { category: '酸洗', amount: 2800, date: '2025-08-07' },
+                    { category: '镀色', amount: 4200, date: '2025-08-10' },
+                    { category: '外购成品', amount: 6500, date: '2025-08-12' },
+                    { category: '配件', amount: 2100, date: '2025-08-14' }
+                ]
+            }, {
+                id: 'batch2',
+                name: 'B202508-02 (客户B)',
+                budgetItems: [
+                    { category: '不锈钢板', budget: 8000 },
+                    { category: '不锈钢管', budget: 6000 },
+                    { category: '玻璃', budget: 3000 },
+                    { category: '酸洗', budget: 2000 },
+                    { category: '镀色', budget: 2500 },
+                    { category: '激光', budget: 1800 },
+                    { category: '外购成品', budget: 4000 },
+                    { category: '包装', budget: 1000 },
+                    { category: '配件', budget: 1500 }
+                ],
+                actuals: [
+                    { category: '不锈钢板', amount: 8500, date: '2025-08-08' },
+                    { category: '不锈钢管', amount: 5500, date: '2025-08-09' },
+                    { category: '激光', amount: 1900, date: '2025-08-11' },
+                    { category: '配件', amount: 1600, date: '2025-08-13' }
+                ]
+            }];
+        }
+
+        function getSampleMonthly() {
+            const cats = getMonthlyCategories().slice(0, 6);
+            const budgetItems = cats.map(cat => ({
+                category: cat,
+                budget: cat === '房租' ? 8000 :
+                    cat === '社保' ? 6000 :
+                    cat === '宁波办公室工资' ? 50000 :
+                    cat === '办公费用' ? 3000 :
+                    cat === '报销' ? 2000 :
+                    cat === '水电' ? 1500 : 0
+            }));
+            const actuals = [
+                { category: '办公费用', amount: 2800, date: '2025-08-03' },
+                { category: '房租', amount: 8000, date: '2025-08-05' },
+                { category: '社保', amount: 6200, date: '2025-08-15' },
+                { category: '宁波办公室工资', amount: 51000, date: '2025-08-20' }
+            ];
+            return [{ month: '2025-08', budgetItems, actuals }];
+        }
+
+        function generateId() { return 'id_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6); }
+
+        // ============================================================
+        //  工具函数
+        // ============================================================
+
+        function formatCurrency(v) { return '¥' + Number(v).toFixed(2); }
+
+        function getBatchTotalBudget(b) { return b.budgetItems.reduce((s, i) => s + i.budget, 0); }
+
+        function getBatchTotalActual(b) { return b.actuals.reduce((s, a) => s + a.amount, 0); }
+
+        function getMonthlyTotalBudget(m) { return m.budgetItems.reduce((s, i) => s + i.budget, 0); }
+
+        function getMonthlyTotalActual(m) { return m.actuals.reduce((s, a) => s + a.amount, 0); }
+
+        function getCategoryBudget(batch, cat) {
+            const item = batch.budgetItems.find(i => i.category === cat);
+            return item ? item.budget : 0;
+        }
+
+        function getCategoryActual(batch, cat) {
+            return batch.actuals.filter(a => a.category === cat).reduce((s, a) => s + a.amount, 0);
+        }
+
+        function getBatchAlert(batch) {
+            const totalBudget = getBatchTotalBudget(batch);
+            const totalActual = getBatchTotalActual(batch);
+            if (totalBudget === 0) return { level: 'none', percent: 0, diff: 0, diffPercent: 0 };
+            const percent = (totalActual / totalBudget) * 100;
+            const diff = totalActual - totalBudget;
+            const diffPercent = (diff / totalBudget) * 100;
+            let level = 'normal';
+            if (percent >= 100) level = 'danger';
+            else if (percent >= 90) level = 'warning';
+            return { level, percent, diff, diffPercent };
+        }
+
+        function getMonthlyAlert(monthly) {
+            const totalBudget = getMonthlyTotalBudget(monthly);
+            const totalActual = getMonthlyTotalActual(monthly);
+            if (totalBudget === 0) return { level: 'none', percent: 0, diff: 0, diffPercent: 0 };
+            const percent = (totalActual / totalBudget) * 100;
+            const diff = totalActual - totalBudget;
+            const diffPercent = (diff / totalBudget) * 100;
+            let level = 'normal';
+            if (percent >= 100) level = 'danger';
+            else if (percent >= 90) level = 'warning';
+            return { level, percent, diff, diffPercent };
+        }
+
+        function formatDate(date) {
+            const d = new Date(date);
+            const y = d.getFullYear();
+            const m = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            return `${y}-${m}-${day}`;
+        }
+
+        // ============================================================
+        //  CSV 导出（批次 + 月度）
+        // ============================================================
+
+        function downloadCSV(csvString, filename) {
+            const BOM = '\uFEFF';
+            const blob = new Blob([BOM + csvString], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            link.href = url;
+            link.setAttribute('download', filename);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        }
+
+        // ---- 批次导出 ----
+        function downloadBatchCSV(batchId) {
+            const batch = batches.find(b => b.id === batchId);
+            if (!batch) { showToast('批次不存在', 'error'); return; }
+            const rows = [
+                ['批次名称', '类别', '预算金额', '实际支出', '差异', '差异百分比(%)', '完成率(%)']
+            ];
+            const cats = getBatchCategories();
+            cats.forEach(cat => {
+                const budget = getCategoryBudget(batch, cat);
+                const actual = getCategoryActual(batch, cat);
+                const diff = actual - budget;
+                const diffPercent = budget > 0 ? (diff / budget) * 100 : 0;
+                const completePercent = budget > 0 ? (actual / budget) * 100 : 0;
+                rows.push([batch.name, cat, budget.toFixed(2), actual.toFixed(2), diff.toFixed(2), diffPercent.toFixed(1),
+                    completePercent.toFixed(1)
+                ]);
+            });
+            const totalBudget = getBatchTotalBudget(batch);
+            const totalActual = getBatchTotalActual(batch);
+            const totalDiff = totalActual - totalBudget;
+            const totalDiffPercent = totalBudget > 0 ? (totalDiff / totalBudget) * 100 : 0;
+            const totalCompletePercent = totalBudget > 0 ? (totalActual / totalBudget) * 100 : 0;
+            rows.push([batch.name + ' (合计)', '', totalBudget.toFixed(2), totalActual.toFixed(2), totalDiff.toFixed(2),
+                totalDiffPercent.toFixed(1), totalCompletePercent.toFixed(1)
+            ]);
+            rows.push([]);
+            rows.push(['实际支出明细']);
+            rows.push(['日期', '类别', '金额']);
+            if (batch.actuals.length > 0) {
+                batch.actuals.forEach(a => rows.push([a.date, a.category, a.amount.toFixed(2)]));
+            } else {
+                rows.push(['', '无实际支出', '']);
+            }
+            const csvContent = rows.map(row => row.join(',')).join('\n');
+            downloadCSV(csvContent, `批次_${batch.name}_预算使用情况.csv`);
+            showToast('下载成功', 'success');
+        }
+
+        function downloadAllBatchesCSV() {
+            if (batches.length === 0) { showToast('没有批次数据可下载', 'error'); return; }
+            const rows = [
+                ['批次名称', '类别', '预算金额', '实际支出', '差异', '差异百分比(%)', '完成率(%)']
+            ];
+            const cats = getBatchCategories();
+            batches.forEach(batch => {
+                cats.forEach(cat => {
+                    const budget = getCategoryBudget(batch, cat);
+                    const actual = getCategoryActual(batch, cat);
+                    const diff = actual - budget;
+                    const diffPercent = budget > 0 ? (diff / budget) * 100 : 0;
+                    const completePercent = budget > 0 ? (actual / budget) * 100 : 0;
+                    rows.push([batch.name, cat, budget.toFixed(2), actual.toFixed(2), diff.toFixed(2), diffPercent
+                        .toFixed(1), completePercent.toFixed(1)
+                    ]);
+                });
+                const totalBudget = getBatchTotalBudget(batch);
+                const totalActual = getBatchTotalActual(batch);
+                const totalDiff = totalActual - totalBudget;
+                const totalDiffPercent = totalBudget > 0 ? (totalDiff / totalBudget) * 100 : 0;
+                const totalCompletePercent = totalBudget > 0 ? (totalActual / totalBudget) * 100 : 0;
+                rows.push([batch.name + ' (合计)', '', totalBudget.toFixed(2), totalActual.toFixed(2), totalDiff.toFixed(2),
+                    totalDiffPercent.toFixed(1), totalCompletePercent.toFixed(1)
+                ]);
+                rows.push([]);
+            });
+            const csvContent = rows.map(row => row.join(',')).join('\n');
+            downloadCSV(csvContent, '全部批次预算使用情况.csv');
+            showToast('全部批次数据下载成功', 'success');
+        }
+
+        // ---- 月度导出（新增） ----
+        function downloadMonthlyCSV(month) {
+            const monthly = monthlyBudgets.find(m => m.month === month);
+            if (!monthly) { showToast('月度数据不存在', 'error'); return; }
+            const rows = [
+                ['月份', '类别', '预算金额', '实际支出', '差异', '差异百分比(%)', '完成率(%)']
+            ];
+            const cats = getMonthlyCategories();
+            // 获取该月份实际存在的类别（包含有预算或有实际支出的）
+            const existingCats = new Set([
+                ...monthly.budgetItems.map(i => i.category),
+                ...monthly.actuals.map(a => a.category)
+            ]);
+            // 若没有实际类别，则使用全部类别（显示0）
+            const displayCats = existingCats.size > 0 ? [...existingCats] : cats;
+            displayCats.forEach(cat => {
+                const budgetItem = monthly.budgetItems.find(i => i.category === cat);
+                const budget = budgetItem ? budgetItem.budget : 0;
+                const actual = monthly.actuals.filter(a => a.category === cat).reduce((s, a) => s + a.amount, 0);
+                const diff = actual - budget;
+                const diffPercent = budget > 0 ? (diff / budget) * 100 : 0;
+                const completePercent = budget > 0 ? (actual / budget) * 100 : 0;
+                rows.push([month, cat, budget.toFixed(2), actual.toFixed(2), diff.toFixed(2), diffPercent.toFixed(1),
+                    completePercent.toFixed(1)
+                ]);
+            });
+            const totalBudget = getMonthlyTotalBudget(monthly);
+            const totalActual = getMonthlyTotalActual(monthly);
+            const totalDiff = totalActual - totalBudget;
+            const totalDiffPercent = totalBudget > 0 ? (totalDiff / totalBudget) * 100 : 0;
+            const totalCompletePercent = totalBudget > 0 ? (totalActual / totalBudget) * 100 : 0;
+            rows.push([month + ' (合计)', '', totalBudget.toFixed(2), totalActual.toFixed(2), totalDiff.toFixed(2),
+                totalDiffPercent.toFixed(1), totalCompletePercent.toFixed(1)
+            ]);
+            rows.push([]);
+            rows.push(['实际支出明细']);
+            rows.push(['日期', '类别', '金额']);
+            if (monthly.actuals.length > 0) {
+                monthly.actuals.forEach(a => rows.push([a.date, a.category, a.amount.toFixed(2)]));
+            } else {
+                rows.push(['', '无实际支出', '']);
+            }
+            const csvContent = rows.map(row => row.join(',')).join('\n');
+            downloadCSV(csvContent, `月度_${month}_支出明细.csv`);
+            showToast('下载成功', 'success');
+        }
+
+        function downloadAllMonthlyCSV() {
+            if (monthlyBudgets.length === 0) { showToast('没有月度数据可下载', 'error'); return; }
+            const rows = [
+                ['月份', '类别', '预算金额', '实际支出', '差异', '差异百分比(%)', '完成率(%)']
+            ];
+            const cats = getMonthlyCategories();
+            monthlyBudgets.forEach(monthly => {
+                const existingCats = new Set([
+                    ...monthly.budgetItems.map(i => i.category),
+                    ...monthly.actuals.map(a => a.category)
+                ]);
+                const displayCats = existingCats.size > 0 ? [...existingCats] : cats;
+                displayCats.forEach(cat => {
+                    const budgetItem = monthly.budgetItems.find(i => i.category === cat);
+                    const budget = budgetItem ? budgetItem.budget : 0;
+                    const actual = monthly.actuals.filter(a => a.category === cat).reduce((s, a) => s + a
+                    .amount, 0);
+                    const diff = actual - budget;
+                    const diffPercent = budget > 0 ? (diff / budget) * 100 : 0;
+                    const completePercent = budget > 0 ? (actual / budget) * 100 : 0;
+                    rows.push([monthly.month, cat, budget.toFixed(2), actual.toFixed(2), diff.toFixed(2),
+                        diffPercent.toFixed(1), completePercent.toFixed(1)
+                    ]);
+                });
+                const totalBudget = getMonthlyTotalBudget(monthly);
+                const totalActual = getMonthlyTotalActual(monthly);
+                const totalDiff = totalActual - totalBudget;
+                const totalDiffPercent = totalBudget > 0 ? (totalDiff / totalBudget) * 100 : 0;
+                const totalCompletePercent = totalBudget > 0 ? (totalActual / totalBudget) * 100 : 0;
+                rows.push([monthly.month + ' (合计)', '', totalBudget.toFixed(2), totalActual.toFixed(2), totalDiff
+                    .toFixed(2), totalDiffPercent.toFixed(1), totalCompletePercent.toFixed(1)
+                ]);
+                rows.push([]);
+            });
+            const csvContent = rows.map(row => row.join(',')).join('\n');
+            downloadCSV(csvContent, '全部月度支出明细.csv');
+            showToast('全部月度数据下载成功', 'success');
+        }
+
+        // ============================================================
+        //  渲染函数
+        // ============================================================
+
+        function renderHeaderDate() {
+            const now = new Date();
+            document.getElementById('headerDate').textContent =
+                `${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日`;
+        }
+
+        function renderBatches() {
+            const container = document.getElementById('batchListContainer');
+            const filter = document.getElementById('batchFilter').value.trim().toLowerCase();
+            let filtered = batches;
+            if (filter) filtered = batches.filter(b => b.name.toLowerCase().includes(filter));
+            document.getElementById('batchCount').textContent = `共 ${filtered.length} 个批次`;
+
+            if (filtered.length === 0) {
+                container.innerHTML =
+                    `<div class="card"><div class="empty-state"><div class="icon">📭</div><p>暂无批次，点击「新建批次」开始</p></div></div>`;
+                return;
+            }
+
+            let html = '';
+            filtered.forEach(batch => {
+                const totalBudget = getBatchTotalBudget(batch);
+                const totalActual = getBatchTotalActual(batch);
+                const alert = getBatchAlert(batch);
+                const statusClass = alert.level === 'danger' ? 'tag-danger' :
+                    alert.level === 'warning' ? 'tag-warning' : 'tag-success';
+                const statusText = alert.level === 'danger' ? '⚠️ 超支' :
+                    alert.level === 'warning' ? '⚡ 接近预算' : '✅ 正常';
+                const progress = totalBudget > 0 ? Math.min((totalActual / totalBudget) * 100, 100) : 0;
+                const fillClass = alert.level === 'danger' ? 'red' :
+                    alert.level === 'warning' ? 'yellow' : 'green';
+
+                html += `
+                    <div class="batch-card" data-id="${batch.id}">
+                        <div class="batch-header">
+                            <span class="batch-name">${batch.name}</span>
+                            <span>
+                                <span class="tag ${statusClass}">${statusText}</span>
+                                <span class="text-muted text-small" style="margin-left:8px;">预算: ${formatCurrency(totalBudget)}</span>
+                            </span>
+                        </div>
+                        <div class="flex-between" style="margin-top:6px;">
+                            <span class="text-muted text-small">已用: ${formatCurrency(totalActual)} (${progress.toFixed(1)}%)</span>
+                            <span class="text-small" style="font-weight:600; color:${alert.diff >= 0 ? 'var(--danger)' : 'var(--success)'};">
+                                ${alert.diff >= 0 ? '超支' : '节约'} ${formatCurrency(Math.abs(alert.diff))} (${alert.diffPercent >= 0 ? '+' : ''}${alert.diffPercent.toFixed(1)}%)
+                            </span>
+                        </div>
+                        <div class="progress-bar"><div class="fill ${fillClass}" style="width:${progress}%;"></div></div>
+                        <div style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap;">
+                            <button class="btn btn-outline btn-sm view-batch-detail" data-id="${batch.id}">📋 详情</button>
+                            <button class="btn btn-warning btn-sm edit-batch-budget" data-id="${batch.id}">✏️ 编辑预算</button>
+                            <button class="btn btn-success btn-sm add-batch-actual" data-id="${batch.id}">➕ 录入支出</button>
+                            <button class="btn btn-warning btn-sm download-batch-csv" data-id="${batch.id}">📥 导出CSV</button>
+                            <button class="btn btn-danger btn-sm delete-batch" data-id="${batch.id}">🗑️ 删除</button>
+                        </div>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+
+            // 事件绑定
+            container.querySelectorAll('.view-batch-detail').forEach(btn => {
+                btn.addEventListener('click', e => { e.stopPropagation();
+                    showBatchDetail(btn.dataset.id); });
+            });
+            container.querySelectorAll('.edit-batch-budget').forEach(btn => {
+                btn.addEventListener('click', e => { e.stopPropagation();
+                    openEditBatchModal(btn.dataset.id); });
+            });
+            container.querySelectorAll('.add-batch-actual').forEach(btn => {
+                btn.addEventListener('click', e => { e.stopPropagation();
+                    openBatchActualModal(btn.dataset.id); });
+            });
+            container.querySelectorAll('.download-batch-csv').forEach(btn => {
+                btn.addEventListener('click', e => { e.stopPropagation();
+                    downloadBatchCSV(btn.dataset.id); });
+            });
+            container.querySelectorAll('.delete-batch').forEach(btn => {
+                btn.addEventListener('click', e => {
+                    e.stopPropagation();
+                    if (confirm('确定删除该批次及其所有数据吗？')) {
+                        batches = batches.filter(b => b.id !== btn.dataset.id);
+                        saveData();
+                        renderAll();
+                        showToast('批次已删除', 'success');
+                    }
+                });
+            });
+            container.querySelectorAll('.batch-card').forEach(card => {
+                card.addEventListener('click', function() { showBatchDetail(this.dataset.id); });
+            });
+        }
+
+        function showBatchDetail(id) {
+            const batch = batches.find(b => b.id === id);
+            if (!batch) return;
+            const cats = getBatchCategories();
+            let detailHtml =
+                `<div style="margin-bottom:12px;"><strong>${batch.name}</strong><span class="text-muted text-small" style="margin-left:12px;">总预算: ${formatCurrency(getBatchTotalBudget(batch))}</span><span class="text-muted text-small">已支出: ${formatCurrency(getBatchTotalActual(batch))}</span></div>
+                <div class="table-wrap"><table><thead><tr><th>类别</th><th>预算</th><th>实际</th><th>差异</th><th>完成%</th></tr></thead><tbody>`;
+            cats.forEach(cat => {
+                const budget = getCategoryBudget(batch, cat);
+                const actual = getCategoryActual(batch, cat);
+                const diff = actual - budget;
+                const percent = budget > 0 ? (actual / budget) * 100 : 0;
+                const diffColor = diff > 0 ? 'var(--danger)' : (diff < 0 ? 'var(--success)' : 'var(--text-secondary)');
+                detailHtml +=
+                    `<tr><td>${cat}</td><td>${formatCurrency(budget)}</td><td>${formatCurrency(actual)}</td><td style="color:${diffColor};">${diff >= 0 ? '+' : ''}${formatCurrency(diff)}</td><td>${budget > 0 ? percent.toFixed(1) : '-'}%</td></tr>`;
+            });
+            const totalBudget = getBatchTotalBudget(batch);
+            const totalActual = getBatchTotalActual(batch);
+            const totalDiff = totalActual - totalBudget;
+            const totalPercent = totalBudget > 0 ? (totalActual / totalBudget) * 100 : 0;
+            const totalColor = totalDiff > 0 ? 'var(--danger)' : (totalDiff < 0 ? 'var(--success)' : 'var(--text-secondary)');
+            detailHtml +=
+                `<tr style="font-weight:700;background:var(--bg);"><td>合计</td><td>${formatCurrency(totalBudget)}</td><td>${formatCurrency(totalActual)}</td><td style="color:${totalColor};">${totalDiff >= 0 ? '+' : ''}${formatCurrency(totalDiff)}</td><td>${totalBudget > 0 ? totalPercent.toFixed(1) : '-'}%</td></tr>`;
+            detailHtml += `</tbody></table></div>`;
+            if (batch.actuals.length > 0) {
+                detailHtml += `<div style="margin-top:16px;"><strong>📋 实际支出明细</strong></div><div class="table-wrap"><table><thead><tr><th>类别</th><th>金额</th><th>日期</th></tr></thead><tbody>`;
+                batch.actuals.forEach(a => { detailHtml +=
+                        `<tr><td>${a.category}</td><td>${formatCurrency(a.amount)}</td><td>${a.date}</td></tr>`; });
+                detailHtml += `</tbody></table></div>`;
+            } else {
+                detailHtml += `<div class="text-muted text-small" style="margin-top:12px;">暂无实际支出记录</div>`;
+            }
+            const modal = document.createElement('div');
+            modal.className = 'modal-overlay show';
+            modal.innerHTML = `
+                <div class="modal-content" style="max-width:700px;">
+                    <button class="modal-close" onclick="this.closest('.modal-overlay').remove()">✕</button>
+                    <h2>📋 批次详情</h2>
+                    ${detailHtml}
+                    <div style="margin-top:16px; display:flex; gap:8px; justify-content:flex-end; flex-wrap:wrap;">
+                        <button class="btn btn-warning" data-id="${batch.id}" id="downloadSingleBatchFromDetail">📥 导出该批次</button>
+                        <button class="btn btn-warning" data-id="${batch.id}" id="editBatchFromDetail">✏️ 编辑预算</button>
+                        <button class="btn btn-success" data-id="${batch.id}" id="addActualFromDetail">➕ 录入支出</button>
+                        <button class="btn btn-outline" onclick="this.closest('.modal-overlay').remove()">关闭</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            modal.querySelector('#downloadSingleBatchFromDetail').addEventListener('click', function() {
+                downloadBatchCSV(this.dataset.id);
+            });
+            modal.querySelector('#editBatchFromDetail').addEventListener('click', function() {
+                const id = this.dataset.id;
+                modal.remove();
+                openEditBatchModal(id);
+            });
+            modal.querySelector('#addActualFromDetail').addEventListener('click', function() {
+                const id = this.dataset.id;
+                modal.remove();
+                openBatchActualModal(id);
+            });
+            modal.addEventListener('click', function(e) { if (e.target === this) this.remove(); });
+        }
+
+        function renderMonthlyBudgets() {
+            const container = document.getElementById('monthlyBudgetList');
+            if (monthlyBudgets.length === 0) {
+                container.innerHTML =
+                    `<div class="card"><div class="empty-state"><div class="icon">📅</div><p>暂无月度预算，点击「新建月度预算」开始</p></div></div>`;
+                return;
+            }
+            let html = '';
+            const sorted = [...monthlyBudgets].sort((a, b) => b.month.localeCompare(a.month));
+            sorted.forEach(monthly => {
+                const totalBudget = getMonthlyTotalBudget(monthly);
+                const totalActual = getMonthlyTotalActual(monthly);
+                const alert = getMonthlyAlert(monthly);
+                const statusClass = alert.level === 'danger' ? 'tag-danger' :
+                    alert.level === 'warning' ? 'tag-warning' : 'tag-success';
+                const statusText = alert.level === 'danger' ? '⚠️ 超支' :
+                    alert.level === 'warning' ? '⚡ 接近预算' : '✅ 正常';
+                const progress = totalBudget > 0 ? Math.min((totalActual / totalBudget) * 100, 100) : 0;
+                const fillClass = alert.level === 'danger' ? 'red' :
+                    alert.level === 'warning' ? 'yellow' : 'green';
+                html += `
+                    <div class="card" style="border-left:4px solid var(--primary-light);">
+                        <div class="flex-between">
+                            <h3 style="font-size:18px;">📅 ${monthly.month}</h3>
+                            <span>
+                                <span class="tag ${statusClass}">${statusText}</span>
+                                <span class="text-muted text-small" style="margin-left:8px;">预算: ${formatCurrency(totalBudget)}</span>
+                            </span>
+                        </div>
+                        <div class="flex-between" style="margin-top:4px;">
+                            <span class="text-muted text-small">已用: ${formatCurrency(totalActual)} (${progress.toFixed(1)}%)</span>
+                            <span class="text-small" style="font-weight:600; color:${alert.diff >= 0 ? 'var(--danger)' : 'var(--success)'};">
+                                ${alert.diff >= 0 ? '超支' : '节约'} ${formatCurrency(Math.abs(alert.diff))} (${alert.diffPercent >= 0 ? '+' : ''}${alert.diffPercent.toFixed(1)}%)
+                            </span>
+                        </div>
+                        <div class="progress-bar"><div class="fill ${fillClass}" style="width:${progress}%;"></div></div>
+                        <div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap;">
+                            <button class="btn btn-outline btn-sm view-monthly-detail" data-month="${monthly.month}">📋 详情</button>
+                            <button class="btn btn-warning btn-sm edit-monthly-budget" data-month="${monthly.month}">✏️ 编辑预算</button>
+                            <button class="btn btn-success btn-sm add-monthly-actual" data-month="${monthly.month}">➕ 录入支出</button>
+                            <button class="btn btn-warning btn-sm download-monthly-csv" data-month="${monthly.month}">📥 导出CSV</button>
+                            <button class="btn btn-danger btn-sm delete-monthly" data-month="${monthly.month}">🗑️ 删除</button>
+                        </div>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+
+            container.querySelectorAll('.view-monthly-detail').forEach(btn => {
+                btn.addEventListener('click', function() { showMonthlyDetail(this.dataset.month); });
+            });
+            container.querySelectorAll('.edit-monthly-budget').forEach(btn => {
+                btn.addEventListener('click', function() { openEditMonthlyModal(this.dataset.month); });
+            });
+            container.querySelectorAll('.add-monthly-actual').forEach(btn => {
+                btn.addEventListener('click', function() { openMonthlyActualModal(this.dataset.month); });
+            });
+            container.querySelectorAll('.download-monthly-csv').forEach(btn => {
+                btn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    downloadMonthlyCSV(this.dataset.month);
+                });
+            });
+            container.querySelectorAll('.delete-monthly').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const month = this.dataset.month;
+                    if (confirm(`确定删除 ${month} 的月度预算吗？`)) {
+                        monthlyBudgets = monthlyBudgets.filter(m => m.month !== month);
+                        saveData();
+                        renderAll();
+                        showToast('月度预算已删除', 'success');
+                    }
+                });
+            });
+        }
+
+        function showMonthlyDetail(month) {
+            const monthly = monthlyBudgets.find(m => m.month === month);
+            if (!monthly) return;
+            const cats = getMonthlyCategories();
+            const allCats = [...new Set([...monthly.budgetItems.map(i => i.category), ...cats])];
+            let detailHtml =
+                `<div style="margin-bottom:12px;"><strong>${month}</strong><span class="text-muted text-small" style="margin-left:12px;">总预算: ${formatCurrency(getMonthlyTotalBudget(monthly))}</span><span class="text-muted text-small">已支出: ${formatCurrency(getMonthlyTotalActual(monthly))}</span></div>
+                <div class="table-wrap"><table><thead><tr><th>类别</th><th>预算</th><th>实际</th><th>差异</th><th>完成%</th></tr></thead><tbody>`;
+            allCats.forEach(cat => {
+                const budgetItem = monthly.budgetItems.find(i => i.category === cat);
+                const budget = budgetItem ? budgetItem.budget : 0;
+                const actual = monthly.actuals.filter(a => a.category === cat).reduce((s, a) => s + a.amount, 0);
+                const diff = actual - budget;
+                const percent = budget > 0 ? (actual / budget) * 100 : 0;
+                const diffColor = diff > 0 ? 'var(--danger)' : (diff < 0 ? 'var(--success)' : 'var(--text-secondary)');
+                detailHtml +=
+                    `<tr><td>${cat}</td><td>${formatCurrency(budget)}</td><td>${formatCurrency(actual)}</td><td style="color:${diffColor};">${diff >= 0 ? '+' : ''}${formatCurrency(diff)}</td><td>${budget > 0 ? percent.toFixed(1) : '-'}%</td></tr>`;
+            });
+            const totalBudget = getMonthlyTotalBudget(monthly);
+            const totalActual = getMonthlyTotalActual(monthly);
+            const totalDiff = totalActual - totalBudget;
+            const totalPercent = totalBudget > 0 ? (totalActual / totalBudget) * 100 : 0;
+            const totalColor = totalDiff > 0 ? 'var(--danger)' : (totalDiff < 0 ? 'var(--success)' : 'var(--text-secondary)');
+            detailHtml +=
+                `<tr style="font-weight:700;background:var(--bg);"><td>合计</td><td>${formatCurrency(totalBudget)}</td><td>${formatCurrency(totalActual)}</td><td style="color:${totalColor};">${totalDiff >= 0 ? '+' : ''}${formatCurrency(totalDiff)}</td><td>${totalBudget > 0 ? totalPercent.toFixed(1) : '-'}%</td></tr>`;
+            detailHtml += `</tbody></table></div>`;
+            if (monthly.actuals.length > 0) {
+                detailHtml += `<div style="margin-top:16px;"><strong>📋 实际支出明细</strong></div><div class="table-wrap"><table><thead><tr><th>类别</th><th>金额</th><th>日期</th></tr></thead><tbody>`;
+                monthly.actuals.forEach(a => { detailHtml +=
+                        `<tr><td>${a.category}</td><td>${formatCurrency(a.amount)}</td><td>${a.date}</td></tr>`; });
+                detailHtml += `</tbody></table></div>`;
+            } else {
+                detailHtml += `<div class="text-muted text-small" style="margin-top:12px;">暂无实际支出记录</div>`;
+            }
+            const modal = document.createElement('div');
+            modal.className = 'modal-overlay show';
+            modal.innerHTML = `
+                <div class="modal-content" style="max-width:700px;">
+                    <button class="modal-close" onclick="this.closest('.modal-overlay').remove()">✕</button>
+                    <h2>📋 月度详情</h2>
+                    ${detailHtml}
+                    <div style="margin-top:16px; display:flex; gap:8px; justify-content:flex-end; flex-wrap:wrap;">
+                        <button class="btn btn-warning" data-month="${month}" id="downloadMonthlyFromDetail">📥 导出该月度</button>
+                        <button class="btn btn-warning" data-month="${month}" id="editMonthlyFromDetail">✏️ 编辑预算</button>
+                        <button class="btn btn-success" data-month="${month}" id="addMonthlyActualFromDetail">➕ 录入支出</button>
+                        <button class="btn btn-outline" onclick="this.closest('.modal-overlay').remove()">关闭</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            modal.querySelector('#downloadMonthlyFromDetail').addEventListener('click', function() {
+                const m = this.dataset.month;
+                downloadMonthlyCSV(m);
+            });
+            modal.querySelector('#editMonthlyFromDetail').addEventListener('click', function() {
+                const m = this.dataset.month;
+                modal.remove();
+                openEditMonthlyModal(m);
+            });
+            modal.querySelector('#addMonthlyActualFromDetail').addEventListener('click', function() {
+                const m = this.dataset.month;
+                modal.remove();
+                openMonthlyActualModal(m);
+            });
+            modal.addEventListener('click', function(e) { if (e.target === this) this.remove(); });
+        }
+
+        function renderAlerts() {
+            const container = document.getElementById('alertBoard');
+            let alertsHtml = '';
+            if (batches.length > 0) {
+                alertsHtml += `<h3 style="margin:12px 0 8px;">📦 批次预警</h3>`;
+                batches.forEach(batch => {
+                    const alert = getBatchAlert(batch);
+                    if (alert.level === 'none') return;
+                    const status = alert.level === 'danger' ? '🔴 超支' : '🟡 接近预算';
+                    const cls = alert.level === 'danger' ? 'danger' : '';
+                    alertsHtml += `
+                        <div class="alert-card ${cls}">
+                            <div class="flex-between">
+                                <span><strong>${batch.name}</strong> - ${status}</span>
+                                <span>实际 ${formatCurrency(getBatchTotalActual(batch))} / 预算 ${formatCurrency(getBatchTotalBudget(batch))}</span>
+                            </div>
+                            <div class="flex-between text-small">
+                                <span>超支/节约: ${alert.diff >= 0 ? '+' : ''}${formatCurrency(alert.diff)} (${alert.diffPercent >= 0 ? '+' : ''}${alert.diffPercent.toFixed(1)}%)</span>
+                                <span>使用率: ${alert.percent.toFixed(1)}%</span>
+                            </div>
+                            <div class="progress-bar" style="margin-top:4px;">
+                                <div class="fill ${alert.level === 'danger' ? 'red' : 'yellow'}" style="width:${Math.min(alert.percent, 100)}%;"></div>
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+            if (monthlyBudgets.length > 0) {
+                alertsHtml += `<h3 style="margin:16px 0 8px;">📅 月度支出预警</h3>`;
+                monthlyBudgets.forEach(monthly => {
+                    const alert = getMonthlyAlert(monthly);
+                    if (alert.level === 'none') return;
+                    const status = alert.level === 'danger' ? '🔴 超支' : '🟡 接近预算';
+                    const cls = alert.level === 'danger' ? 'danger' : '';
+                    alertsHtml += `
+                        <div class="alert-card ${cls}">
+                            <div class="flex-between">
+                                <span><strong>${monthly.month}</strong> - ${status}</span>
+                                <span>实际 ${formatCurrency(getMonthlyTotalActual(monthly))} / 预算 ${formatCurrency(getMonthlyTotalBudget(monthly))}</span>
+                            </div>
+                            <div class="flex-between text-small">
+                                <span>超支/节约: ${alert.diff >= 0 ? '+' : ''}${formatCurrency(alert.diff)} (${alert.diffPercent >= 0 ? '+' : ''}${alert.diffPercent.toFixed(1)}%)</span>
+                                <span>使用率: ${alert.percent.toFixed(1)}%</span>
+                            </div>
+                            <div class="progress-bar" style="margin-top:4px;">
+                                <div class="fill ${alert.level === 'danger' ? 'red' : 'yellow'}" style="width:${Math.min(alert.percent, 100)}%;"></div>
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+            if (!alertsHtml) {
+                alertsHtml =
+                    `<div class="card"><div class="empty-state"><div class="icon">✅</div><p>当前没有预警，所有预算均在正常范围内</p></div></div>`;
+            } else {
+                alertsHtml = `<div class="card">${alertsHtml}</div>`;
+            }
+            container.innerHTML = alertsHtml;
+        }
+
+        function renderAll() {
+            renderHeaderDate();
+            renderBatches();
+            renderMonthlyBudgets();
+            renderAlerts();
+        }
+
+        // ============================================================
+        //  模态框操作
+        // ============================================================
+
+        // ---- 新建批次 ----
+        function openBatchModal() {
+            const modal = document.getElementById('modalBatch');
+            modal.classList.add('show');
+            const container = document.getElementById('budgetItemsContainer');
+            let html = '';
+            getBatchCategories().forEach(cat => {
+                html += `
+                    <div style="display:flex; gap:8px; align-items:center; margin-bottom:6px;">
+                        <label style="width:80px; font-weight:500;">${cat}</label>
+                        <input type="number" name="budget_${cat}" placeholder="预算金额" step="0.01" min="0" style="flex:1; padding:6px 10px; border:2px solid var(--border); border-radius:6px;" />
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+            document.getElementById('batchName').value = '';
+            document.getElementById('batchForm').reset();
+        }
+
+        function closeBatchModal() { document.getElementById('modalBatch').classList.remove('show'); }
+
+        document.getElementById('btnAddBatch').addEventListener('click', openBatchModal);
+        document.getElementById('closeBatchModal').addEventListener('click', closeBatchModal);
+        document.getElementById('modalBatch').addEventListener('click', function(e) { if (e.target === this) closeBatchModal(); });
+
+        document.getElementById('batchForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const name = document.getElementById('batchName').value.trim();
+            if (!name) { showToast('请输入批次名称', 'error'); return; }
+            const budgetItems = [];
+            const inputs = this.querySelectorAll('[name^="budget_"]');
+            inputs.forEach(input => {
+                const category = input.name.replace('budget_', '');
+                const val = parseFloat(input.value) || 0;
+                if (val > 0) budgetItems.push({ category, budget: val });
+            });
+            if (budgetItems.length === 0) { showToast('请至少输入一项预算金额', 'error'); return; }
+            batches.push({ id: generateId(), name, budgetItems, actuals: [] });
+            saveData();
+            closeBatchModal();
+            renderAll();
+            showToast(`批次 "${name}" 创建成功`, 'success');
+        });
+
+        // ---- 编辑批次预算 ----
+        function openEditBatchModal(batchId) {
+            const batch = batches.find(b => b.id === batchId);
+            if (!batch) { showToast('批次不存在', 'error'); return; }
+            document.getElementById('editBatchId').value = batchId;
+            document.getElementById('editBatchName').value = batch.name;
+            const container = document.getElementById('editBudgetItemsContainer');
+            let html = '';
+            getBatchCategories().forEach(cat => {
+                const curBudget = getCategoryBudget(batch, cat);
+                html += `
+                    <div style="display:flex; gap:8px; align-items:center; margin-bottom:6px;">
+                        <label style="width:80px; font-weight:500;">${cat}</label>
+                        <input type="number" name="edit_budget_${cat}" value="${curBudget}" step="0.01" min="0" style="flex:1; padding:6px 10px; border:2px solid var(--border); border-radius:6px;" />
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+            document.getElementById('modalEditBatch').classList.add('show');
+        }
+
+        function closeEditBatchModal() { document.getElementById('modalEditBatch').classList.remove('show'); }
+
+        document.getElementById('closeEditBatchModal').addEventListener('click', closeEditBatchModal);
+        document.getElementById('modalEditBatch').addEventListener('click', function(e) { if (e.target === this)
+            closeEditBatchModal(); });
+
+        document.getElementById('editBatchForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const batchId = document.getElementById('editBatchId').value;
+            const batch = batches.find(b => b.id === batchId);
+            if (!batch) { showToast('批次不存在', 'error'); return; }
+            const budgetItems = [];
+            const inputs = this.querySelectorAll('[name^="edit_budget_"]');
+            inputs.forEach(input => {
+                const category = input.name.replace('edit_budget_', '');
+                const val = parseFloat(input.value) || 0;
+                if (val > 0) budgetItems.push({ category, budget: val });
+            });
+            if (budgetItems.length === 0) { showToast('请至少保留一项预算金额', 'error'); return; }
+            batch.budgetItems = budgetItems;
+            saveData();
+            closeEditBatchModal();
+            renderAll();
+            showToast(`批次 "${batch.name}" 预算已更新`, 'success');
+        });
+
+        // ---- 批次实际支出 ----
+        function openBatchActualModal(batchId) {
+            const batch = batches.find(b => b.id === batchId);
+            if (!batch) return;
+            document.getElementById('batchActualId').value = batchId;
+            document.getElementById('batchActualTitle').textContent = `批次：${batch.name}`;
+            const select = document.getElementById('batchActualCategory');
+            select.innerHTML = '';
+            const categories = batch.budgetItems.map(item => item.category);
+            if (categories.length === 0) {
+                getBatchCategories().forEach(c => {
+                    const opt = document.createElement('option');
+                    opt.value = c;
+                    opt.textContent = c;
+                    select.appendChild(opt);
+                });
+            } else {
+                categories.forEach(c => {
+                    const opt = document.createElement('option');
+                    opt.value = c;
+                    opt.textContent = c;
+                    select.appendChild(opt);
+                });
+            }
+            document.getElementById('batchActualAmount').value = '';
+            document.getElementById('batchActualDate').value = formatDate(new Date());
+            document.getElementById('modalBatchActual').classList.add('show');
+        }
+
+        function closeBatchActualModal() { document.getElementById('modalBatchActual').classList.remove('show'); }
+
+        document.getElementById('closeBatchActualModal').addEventListener('click', closeBatchActualModal);
+        document.getElementById('modalBatchActual').addEventListener('click', function(e) { if (e.target === this)
+                closeBatchActualModal(); });
+
+        document.getElementById('batchActualForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const batchId = document.getElementById('batchActualId').value;
+            const category = document.getElementById('batchActualCategory').value;
+            const amount = parseFloat(document.getElementById('batchActualAmount').value);
+            const date = document.getElementById('batchActualDate').value;
+            if (!amount || amount <= 0) { showToast('请输入有效金额', 'error'); return; }
+            if (!date) { showToast('请选择日期', 'error'); return; }
+            const batch = batches.find(b => b.id === batchId);
+            if (!batch) { showToast('批次不存在', 'error'); return; }
+            batch.actuals.push({ category, amount, date });
+            saveData();
+            closeBatchActualModal();
+            renderAll();
+            showToast(`支出 ${formatCurrency(amount)} 已录入`, 'success');
+        });
+
+        // ---- 新建月度预算 ----
+        function openMonthlyModal() {
+            const modal = document.getElementById('modalMonthlyBudget');
+            modal.classList.add('show');
+            const container = document.getElementById('monthlyItemsContainer');
+            let html = '';
+            getMonthlyCategories().forEach(cat => {
+                html += `
+                    <div style="display:flex; gap:8px; align-items:center; margin-bottom:6px;">
+                        <label style="width:100px; font-weight:500;">${cat}</label>
+                        <input type="number" name="monthly_${cat}" placeholder="预算金额" step="0.01" min="0" style="flex:1; padding:6px 10px; border:2px solid var(--border); border-radius:6px;" />
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+            document.getElementById('monthlyMonth').value = '';
+        }
+
+        function closeMonthlyModal() { document.getElementById('modalMonthlyBudget').classList.remove('show'); }
+
+        document.getElementById('btnAddMonthlyBudget').addEventListener('click', openMonthlyModal);
+        document.getElementById('closeMonthlyModal').addEventListener('click', closeMonthlyModal);
+        document.getElementById('modalMonthlyBudget').addEventListener('click', function(e) { if (e.target === this)
+                closeMonthlyModal(); });
+
+        document.getElementById('monthlyBudgetForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const month = document.getElementById('monthlyMonth').value;
+            if (!month) { showToast('请选择月份', 'error'); return; }
+            if (monthlyBudgets.some(m => m.month === month)) {
+                showToast('该月份预算已存在，请编辑或删除后重新创建', 'error');
+                return;
+            }
+            const budgetItems = [];
+            const inputs = this.querySelectorAll('[name^="monthly_"]');
+            inputs.forEach(input => {
+                const category = input.name.replace('monthly_', '');
+                const val = parseFloat(input.value) || 0;
+                if (val > 0) budgetItems.push({ category, budget: val });
+            });
+            if (budgetItems.length === 0) { showToast('请至少输入一项预算金额', 'error'); return; }
+            monthlyBudgets.push({ month, budgetItems, actuals: [] });
+            saveData();
+            closeMonthlyModal();
+            renderAll();
+            showToast(`月度预算 ${month} 创建成功`, 'success');
+        });
+
+        // ---- 编辑月度预算 ----
+        function openEditMonthlyModal(month) {
+            const monthly = monthlyBudgets.find(m => m.month === month);
+            if (!monthly) { showToast('月度预算不存在', 'error'); return; }
+            document.getElementById('editMonthlyMonth').value = month;
+            document.getElementById('editMonthlyMonthDisplay').value = month;
+            const container = document.getElementById('editMonthlyItemsContainer');
+            let html = '';
+            getMonthlyCategories().forEach(cat => {
+                const budgetItem = monthly.budgetItems.find(i => i.category === cat);
+                const curBudget = budgetItem ? budgetItem.budget : 0;
+                html += `
+                    <div style="display:flex; gap:8px; align-items:center; margin-bottom:6px;">
+                        <label style="width:100px; font-weight:500;">${cat}</label>
+                        <input type="number" name="edit_monthly_${cat}" value="${curBudget}" step="0.01" min="0" style="flex:1; padding:6px 10px; border:2px solid var(--border); border-radius:6px;" />
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+            document.getElementById('modalEditMonthly').classList.add('show');
+        }
+
+        function closeEditMonthlyModal() { document.getElementById('modalEditMonthly').classList.remove('show'); }
+
+        document.getElementById('closeEditMonthlyModal').addEventListener('click', closeEditMonthlyModal);
+        document.getElementById('modalEditMonthly').addEventListener('click', function(e) { if (e.target === this)
+                closeEditMonthlyModal(); });
+
+        document.getElementById('editMonthlyForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const month = document.getElementById('editMonthlyMonth').value;
+            const monthly = monthlyBudgets.find(m => m.month === month);
+            if (!monthly) { showToast('月度预算不存在', 'error'); return; }
+            const budgetItems = [];
+            const inputs = this.querySelectorAll('[name^="edit_monthly_"]');
+            inputs.forEach(input => {
+                const category = input.name.replace('edit_monthly_', '');
+                const val = parseFloat(input.value) || 0;
+                if (val > 0) budgetItems.push({ category, budget: val });
+            });
+            if (budgetItems.length === 0) { showToast('请至少保留一项预算金额', 'error'); return; }
+            monthly.budgetItems = budgetItems;
+            saveData();
+            closeEditMonthlyModal();
+            renderAll();
+            showToast(`月度预算 ${month} 已更新`, 'success');
+        });
+
+        // ---- 月度实际支出 ----
+        function openMonthlyActualModal(month) {
+            const monthly = monthlyBudgets.find(m => m.month === month);
+            if (!monthly) return;
+            document.getElementById('monthlyActualMonth').value = month;
+            document.getElementById('monthlyActualTitle').textContent = `月份：${month}`;
+            const select = document.getElementById('monthlyActualCategory');
+            select.innerHTML = '';
+            const categories = monthly.budgetItems.map(item => item.category);
+            categories.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c;
+                opt.textContent = c;
+                select.appendChild(opt);
+            });
+            document.getElementById('monthlyActualAmount').value = '';
+            document.getElementById('monthlyActualDate').value = formatDate(new Date());
+            document.getElementById('modalMonthlyActual').classList.add('show');
+        }
+
+        function closeMonthlyActualModal() { document.getElementById('modalMonthlyActual').classList.remove('show'); }
+
+        document.getElementById('closeMonthlyActualModal').addEventListener('click', closeMonthlyActualModal);
+        document.getElementById('modalMonthlyActual').addEventListener('click', function(e) { if (e.target === this)
+                closeMonthlyActualModal(); });
+
+        document.getElementById('monthlyActualForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const month = document.getElementById('monthlyActualMonth').value;
+            const category = document.getElementById('monthlyActualCategory').value;
+            const amount = parseFloat(document.getElementById('monthlyActualAmount').value);
+            const date = document.getElementById('monthlyActualDate').value;
+            if (!amount || amount <= 0) { showToast('请输入有效金额', 'error'); return; }
+            if (!date) { showToast('请选择日期', 'error'); return; }
+            const monthly = monthlyBudgets.find(m => m.month === month);
+            if (!monthly) { showToast('月度预算不存在', 'error'); return; }
+            monthly.actuals.push({ category, amount, date });
+            saveData();
+            closeMonthlyActualModal();
+            renderAll();
+            showToast(`支出 ${formatCurrency(amount)} 已录入`, 'success');
+        });
+
+        // ============================================================
+        //  类别管理（批次 & 月度）
+        // ============================================================
+
+        // ---- 批次类别管理 ----
+        function renderBatchCategoryManager() {
+            const container = document.getElementById('batchCategoryListContainer');
+            if (batchCategories.length === 0) {
+                container.innerHTML = `<p class="text-muted text-small">暂无类别，请添加。</p>`;
+                return;
+            }
+            let html = '';
+            batchCategories.forEach(cat => {
+                const usageCount = batches.filter(b =>
+                    b.budgetItems.some(item => item.category === cat) ||
+                    b.actuals.some(a => a.category === cat)
+                ).length;
+                html += `
+                    <div class="category-item">
+                        <span class="cat-name">${cat}</span>
+                        <div>
+                            <span class="cat-usage">已在 ${usageCount} 个批次中使用</span>
+                            <button class="btn btn-danger btn-sm delete-batch-category-btn" data-category="${cat}">删除</button>
+                        </div>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+            container.querySelectorAll('.delete-batch-category-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const cat = this.dataset.category;
+                    const usageCount = batches.filter(b =>
+                        b.budgetItems.some(item => item.category === cat) ||
+                        b.actuals.some(a => a.category === cat)
+                    ).length;
+                    if (usageCount > 0) {
+                        if (!confirm(`类别「${cat}」已在 ${usageCount} 个批次中使用，确定要删除吗？（删除后已有批次数据仍可查看，但新建批次将不再出现）`)) {
+                            return;
+                        }
+                    } else {
+                        if (!confirm(`确定要删除类别「${cat}」吗？`)) return;
+                    }
+                    batchCategories = batchCategories.filter(c => c !== cat);
+                    saveBatchCategories();
+                    renderBatchCategoryManager();
+                    showToast(`已删除类别「${cat}」`, 'success');
+                });
+            });
+        }
+
+        function openBatchCategoryModal() {
+            document.getElementById('modalBatchCategoryManager').classList.add('show');
+            renderBatchCategoryManager();
+            document.getElementById('newBatchCategoryInput').value = '';
+        }
+
+        function closeBatchCategoryModal() { document.getElementById('modalBatchCategoryManager').classList.remove('show'); }
+
+        document.getElementById('btnManageBatchCategories').addEventListener('click', openBatchCategoryModal);
+        document.getElementById('closeBatchCategoryModal').addEventListener('click', closeBatchCategoryModal);
+        document.getElementById('modalBatchCategoryManager').addEventListener('click', function(e) { if (e.target === this)
+                closeBatchCategoryModal(); });
+
+        document.getElementById('btnAddBatchCategory').addEventListener('click', function() {
+            const input = document.getElementById('newBatchCategoryInput');
+            const val = input.value.trim();
+            if (!val) { showToast('请输入类别名称', 'error'); return; }
+            if (batchCategories.includes(val)) { showToast('该类别已存在', 'error'); return; }
+            batchCategories.push(val);
+            saveBatchCategories();
+            renderBatchCategoryManager();
+            input.value = '';
+            showToast(`已添加类别「${val}」`, 'success');
+        });
+        document.getElementById('newBatchCategoryInput').addEventListener('keyup', function(e) {
+            if (e.key === 'Enter') document.getElementById('btnAddBatchCategory').click();
+        });
+
+        // ---- 月度类别管理 ----
+        function renderMonthlyCategoryManager() {
+            const container = document.getElementById('monthlyCategoryListContainer');
+            if (monthlyCategories.length === 0) {
+                container.innerHTML = `<p class="text-muted text-small">暂无类别，请添加。</p>`;
+                return;
+            }
+            let html = '';
+            monthlyCategories.forEach(cat => {
+                const usageCount = monthlyBudgets.filter(m =>
+                    m.budgetItems.some(item => item.category === cat) ||
+                    m.actuals.some(a => a.category === cat)
+                ).length;
+                html += `
+                    <div class="category-item">
+                        <span class="cat-name">${cat}</span>
+                        <div>
+                            <span class="cat-usage">已在 ${usageCount} 个月份中使用</span>
+                            <button class="btn btn-danger btn-sm delete-monthly-category-btn" data-category="${cat}">删除</button>
+                        </div>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+            container.querySelectorAll('.delete-monthly-category-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const cat = this.dataset.category;
+                    const usageCount = monthlyBudgets.filter(m =>
+                        m.budgetItems.some(item => item.category === cat) ||
+                        m.actuals.some(a => a.category === cat)
+                    ).length;
+                    if (usageCount > 0) {
+                        if (!confirm(`类别「${cat}」已在 ${usageCount} 个月份中使用，确定要删除吗？（删除后已有月份数据仍可查看，但新建月份将不再出现）`)) {
+                            return;
+                        }
+                    } else {
+                        if (!confirm(`确定要删除类别「${cat}」吗？`)) return;
+                    }
+                    monthlyCategories = monthlyCategories.filter(c => c !== cat);
+                    saveMonthlyCategories();
+                    renderMonthlyCategoryManager();
+                    showToast(`已删除类别「${cat}」`, 'success');
+                });
+            });
+        }
+
+        function openMonthlyCategoryModal() {
+            document.getElementById('modalMonthlyCategoryManager').classList.add('show');
+            renderMonthlyCategoryManager();
+            document.getElementById('newMonthlyCategoryInput').value = '';
+        }
+
+        function closeMonthlyCategoryModal() { document.getElementById('modalMonthlyCategoryManager').classList.remove(
+            'show'); }
+
+        document.getElementById('btnManageMonthlyCategories').addEventListener('click', openMonthlyCategoryModal);
+        document.getElementById('closeMonthlyCategoryModal').addEventListener('click', closeMonthlyCategoryModal);
+        document.getElementById('modalMonthlyCategoryManager').addEventListener('click', function(e) { if (e.target === this)
+                closeMonthlyCategoryModal(); });
+
+        document.getElementById('btnAddMonthlyCategory').addEventListener('click', function() {
+            const input = document.getElementById('newMonthlyCategoryInput');
+            const val = input.value.trim();
+            if (!val) { showToast('请输入类别名称', 'error'); return; }
+            if (monthlyCategories.includes(val)) { showToast('该类别已存在', 'error'); return; }
+            monthlyCategories.push(val);
+            saveMonthlyCategories();
+            renderMonthlyCategoryManager();
+            input.value = '';
+            showToast(`已添加类别「${val}」`, 'success');
+        });
+        document.getElementById('newMonthlyCategoryInput').addEventListener('keyup', function(e) {
+            if (e.key === 'Enter') document.getElementById('btnAddMonthlyCategory').click();
+        });
+
+        // ============================================================
+        //  Toast & 导航
+        // ============================================================
+
+        let toastTimer;
+
+        function showToast(msg, type = '') {
+            const el = document.getElementById('toast');
+            el.textContent = msg;
+            el.className = 'toast' + (type ? ' ' + type : '');
+            clearTimeout(toastTimer);
+            void el.offsetWidth;
+            el.classList.add('show');
+            toastTimer = setTimeout(() => el.classList.remove('show'), 2500);
+        }
+
+        function switchPage(pageId) {
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            document.getElementById(pageId).classList.add('active');
+            document.querySelectorAll('.bottom-nav .nav-item').forEach(item => {
+                item.classList.toggle('active', item.dataset.page === pageId);
+            });
+            if (pageId === 'pageAlerts') renderAlerts();
+        }
+
+        document.querySelectorAll('.bottom-nav .nav-item').forEach(item => {
+            item.addEventListener('click', function() {
+                const pageId = this.dataset.page;
+                if (pageId) switchPage(pageId);
+            });
+        });
+
+        // ---- 筛选 ----
+        document.getElementById('btnFilterBatch').addEventListener('click', renderBatches);
+        document.getElementById('btnClearFilter').addEventListener('click', function() {
+            document.getElementById('batchFilter').value = '';
+            renderBatches();
+        });
+        document.getElementById('batchFilter').addEventListener('keyup', function(e) {
+            if (e.key === 'Enter') renderBatches();
+        });
+
+        // ---- 下载全部批次 ----
+        document.getElementById('btnDownloadAllBatches').addEventListener('click', downloadAllBatchesCSV);
+        // ---- 下载全部月度 ----
+        document.getElementById('btnDownloadAllMonthly').addEventListener('click', downloadAllMonthlyCSV);
+
+        // ============================================================
+        //  初始化
+        // ============================================================
+
+        loadBatchCategories();
+        loadMonthlyCategories();
+        loadData();
+        renderAll();
+        switchPage('pageBatches');
+
+        console.log('🏭 生产预算管理系统已启动，月度支出预算已支持导出。');
+        console.log('批次类别:', batchCategories);
+        console.log('月度类别:', monthlyCategories);
+    </script>
+</body>
+</html>
