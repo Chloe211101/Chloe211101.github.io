@@ -3,9 +3,13 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>🏭 生产预算管理系统</title>
+    <title>🏭 生产预算管理系统 · 实时协作版</title>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js">
+    </script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js">
+    </script>
     <style>
-        /* ========== CSS 变量 & 重置 ========== */
+        /* ====== 完整样式 ====== */
         :root {
             --primary: #1E3A8A;
             --primary-light: #3B82F6;
@@ -25,7 +29,12 @@
             --transition: all 0.3s ease;
             --safe-bottom: env(safe-area-inset-bottom, 0px);
         }
-        * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
             background: var(--bg);
@@ -33,12 +42,22 @@
             min-height: 100vh;
             padding-bottom: calc(80px + var(--safe-bottom));
         }
-        ::-webkit-scrollbar { width:4px; height:4px; }
-        ::-webkit-scrollbar-track { background:transparent; }
-        ::-webkit-scrollbar-thumb { background:var(--primary-light); border-radius:4px; }
-        .container { max-width:1024px; margin:0 auto; padding:0 16px; }
-
-        /* ===== 顶部导航 ===== */
+        ::-webkit-scrollbar {
+            width: 4px;
+            height: 4px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: var(--primary-light);
+            border-radius: 4px;
+        }
+        .container {
+            max-width: 1024px;
+            margin: 0 auto;
+            padding: 0 16px;
+        }
         .app-header {
             background: var(--primary);
             color: #fff;
@@ -46,164 +65,578 @@
             position: sticky;
             top: 0;
             z-index: 20;
-            box-shadow: 0 4px 20px rgba(30,58,138,0.3);
+            box-shadow: 0 4px 20px rgba(30, 58, 138, 0.3);
         }
-        .app-header .header-inner { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; }
-        .app-header h1 { font-size:22px; font-weight:700; letter-spacing:0.5px; }
-        .app-header h1 small { font-size:14px; font-weight:400; opacity:0.8; margin-left:8px; }
-        .app-header .header-date { font-size:14px; opacity:0.85; background:rgba(255,255,255,0.12); padding:4px 16px; border-radius:20px; backdrop-filter:blur(4px); }
-
-        /* ===== 主布局 ===== */
-        .page { display:none; animation:fadeUp 0.3s ease; }
-        .page.active { display:block; }
-        @keyframes fadeUp { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
-
+        .app-header .header-inner {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .app-header h1 {
+            font-size: 22px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .app-header h1 small {
+            font-size: 14px;
+            font-weight: 400;
+            opacity: 0.8;
+            margin-left: 4px;
+        }
+        .app-header .header-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .app-header .header-date {
+            font-size: 14px;
+            opacity: 0.85;
+            background: rgba(255, 255, 255, 0.12);
+            padding: 4px 16px;
+            border-radius: 20px;
+            backdrop-filter: blur(4px);
+        }
+        .sync-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 13px;
+            background: rgba(255, 255, 255, 0.15);
+            padding: 4px 14px;
+            border-radius: 20px;
+            backdrop-filter: blur(4px);
+            font-weight: 500;
+        }
+        .sync-status .dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            display: inline-block;
+            transition: all 0.3s;
+        }
+        .sync-status .dot.online {
+            background: #4ADE80;
+            box-shadow: 0 0 8px rgba(74, 222, 128, 0.6);
+        }
+        .sync-status .dot.offline {
+            background: #F87171;
+            box-shadow: 0 0 8px rgba(248, 113, 113, 0.6);
+            animation: pulse 1.5s infinite;
+        }
+        .sync-status .dot.syncing {
+            background: #FBBF24;
+            animation: pulse 0.8s infinite;
+        }
+        @keyframes pulse {
+            0%,
+            100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+            50% {
+                opacity: 0.5;
+                transform: scale(0.8);
+            }
+        }
+        .page {
+            display: none;
+            animation: fadeUp 0.3s ease;
+        }
+        .page.active {
+            display: block;
+        }
+        @keyframes fadeUp {
+            from {
+                opacity: 0;
+                transform: translateY(12px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
         .section-title {
-            font-size:20px; font-weight:700; margin:20px 0 14px; display:flex; align-items:center; gap:8px; color:var(--text-primary); flex-wrap:wrap;
+            font-size: 20px;
+            font-weight: 700;
+            margin: 20px 0 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--text-primary);
+            flex-wrap: wrap;
         }
         .card {
-            background:var(--card-bg); border-radius:var(--radius); box-shadow:var(--shadow); padding:18px 20px; margin-bottom:16px; transition:var(--transition);
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            padding: 18px 20px;
+            margin-bottom: 16px;
+            transition: var(--transition);
         }
-        .card:hover { box-shadow:0 8px 30px rgba(30,58,138,0.12); }
-        .flex-between { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; }
+        .card:hover {
+            box-shadow: 0 8px 30px rgba(30, 58, 138, 0.12);
+        }
+        .flex-between {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
         .btn {
-            border:none; padding:8px 18px; border-radius:var(--radius-sm); font-weight:600; cursor:pointer; transition:var(--transition);
-            font-size:14px; display:inline-flex; align-items:center; gap:6px;
+            border: none;
+            padding: 8px 18px;
+            border-radius: var(--radius-sm);
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            font-size: 14px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
         }
-        .btn-primary { background:var(--primary); color:#fff; }
-        .btn-primary:hover { background:var(--primary-dark); transform:translateY(-1px); }
-        .btn-success { background:var(--success); color:#fff; }
-        .btn-success:hover { background:#059669; }
-        .btn-warning { background:var(--warning); color:#fff; }
-        .btn-danger { background:var(--danger); color:#fff; }
-        .btn-outline { background:transparent; border:2px solid var(--border); color:var(--text-secondary); }
-        .btn-outline:hover { border-color:var(--primary); color:var(--primary); }
-        .btn-sm { padding:4px 12px; font-size:12px; }
-
-        .form-group { margin-bottom:14px; }
-        .form-group label { display:block; font-size:14px; font-weight:600; margin-bottom:4px; color:var(--text-secondary); }
-        .form-group input, .form-group select, .form-group textarea {
-            width:100%; padding:10px 14px; border:2px solid var(--border); border-radius:var(--radius-sm);
-            font-size:14px; font-family:inherit; transition:var(--transition); background:#fff; color:var(--text-primary); outline:none;
+        .btn-primary {
+            background: var(--primary);
+            color: #fff;
         }
-        .form-group input:focus, .form-group select:focus { border-color:var(--primary-light); box-shadow:0 0 0 3px rgba(59,130,246,0.15); }
-
-        .table-wrap { overflow-x:auto; }
-        table { width:100%; border-collapse:collapse; font-size:14px; }
-        th { background:var(--bg); text-align:left; padding:10px 12px; font-weight:600; color:var(--text-secondary); border-bottom:2px solid var(--border); }
-        td { padding:10px 12px; border-bottom:1px solid var(--border); vertical-align:middle; }
-        tr:hover td { background:#FAFBFF; }
-
-        .tag { display:inline-block; padding:2px 12px; border-radius:12px; font-size:12px; font-weight:600; }
-        .tag-warning { background:#FEF3C7; color:#92400E; }
-        .tag-danger { background:#FEE2E2; color:#991B1B; }
-        .tag-success { background:#D1FAE5; color:#065F46; }
-
-        .progress-bar { width:100%; height:6px; background:var(--border); border-radius:4px; overflow:hidden; margin-top:4px; }
-        .progress-bar .fill { height:100%; border-radius:4px; transition:width 0.4s; }
-        .fill.green { background:var(--success); }
-        .fill.yellow { background:var(--warning); }
-        .fill.red { background:var(--danger); }
-
-        .alert-card { border-left:4px solid var(--warning); padding:12px 16px; background:#FFFBEB; border-radius:var(--radius-sm); margin-bottom:8px; }
-        .alert-card.danger { border-left-color:var(--danger); background:#FEF2F2; }
-        .alert-card.success { border-left-color:var(--success); background:#ECFDF5; }
-
-        .empty-state { text-align:center; padding:40px 20px; color:var(--text-light); }
-        .empty-state .icon { font-size:48px; margin-bottom:12px; }
-
-        /* 模态框 */
+        .btn-primary:hover {
+            background: var(--primary-dark);
+            transform: translateY(-1px);
+        }
+        .btn-success {
+            background: var(--success);
+            color: #fff;
+        }
+        .btn-success:hover {
+            background: #059669;
+        }
+        .btn-warning {
+            background: var(--warning);
+            color: #fff;
+        }
+        .btn-danger {
+            background: var(--danger);
+            color: #fff;
+        }
+        .btn-outline {
+            background: transparent;
+            border: 2px solid var(--border);
+            color: var(--text-secondary);
+        }
+        .btn-outline:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+        .btn-sm {
+            padding: 4px 12px;
+            font-size: 12px;
+        }
+        .form-group {
+            margin-bottom: 14px;
+        }
+        .form-group label {
+            display: block;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 4px;
+            color: var(--text-secondary);
+        }
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 10px 14px;
+            border: 2px solid var(--border);
+            border-radius: var(--radius-sm);
+            font-size: 14px;
+            font-family: inherit;
+            transition: var(--transition);
+            background: #fff;
+            color: var(--text-primary);
+            outline: none;
+        }
+        .form-group input:focus,
+        .form-group select:focus {
+            border-color: var(--primary-light);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+        }
+        .table-wrap {
+            overflow-x: auto;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+        th {
+            background: var(--bg);
+            text-align: left;
+            padding: 10px 12px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            border-bottom: 2px solid var(--border);
+        }
+        td {
+            padding: 10px 12px;
+            border-bottom: 1px solid var(--border);
+            vertical-align: middle;
+        }
+        tr:hover td {
+            background: #FAFBFF;
+        }
+        .tag {
+            display: inline-block;
+            padding: 2px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .tag-warning {
+            background: #FEF3C7;
+            color: #92400E;
+        }
+        .tag-danger {
+            background: #FEE2E2;
+            color: #991B1B;
+        }
+        .tag-success {
+            background: #D1FAE5;
+            color: #065F46;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: var(--border);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 4px;
+        }
+        .progress-bar .fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.4s;
+        }
+        .fill.green {
+            background: var(--success);
+        }
+        .fill.yellow {
+            background: var(--warning);
+        }
+        .fill.red {
+            background: var(--danger);
+        }
+        .alert-card {
+            border-left: 4px solid var(--warning);
+            padding: 12px 16px;
+            background: #FFFBEB;
+            border-radius: var(--radius-sm);
+            margin-bottom: 8px;
+        }
+        .alert-card.danger {
+            border-left-color: var(--danger);
+            background: #FEF2F2;
+        }
+        .alert-card.success {
+            border-left-color: var(--success);
+            background: #ECFDF5;
+        }
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--text-light);
+        }
+        .empty-state .icon {
+            font-size: 48px;
+            margin-bottom: 12px;
+        }
         .modal-overlay {
-            position:fixed; inset:0; background:rgba(0,0,0,0.5); backdrop-filter:blur(4px);
-            display:none; align-items:center; justify-content:center; z-index:100; animation:fadeIn 0.25s ease; padding:16px;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(4px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            animation: fadeIn 0.25s ease;
+            padding: 16px;
         }
-        .modal-overlay.show { display:flex; }
-        @keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
+        .modal-overlay.show {
+            display: flex;
+        }
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
         .modal-content {
-            background:var(--card-bg); border-radius:var(--radius); max-width:700px; width:100%; max-height:90vh;
-            overflow-y:auto; padding:24px 28px; animation:slideUp 0.3s ease; box-shadow:0 20px 60px rgba(0,0,0,0.2); position:relative;
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            max-width: 700px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+            padding: 24px 28px;
+            animation: slideUp 0.3s ease;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+            position: relative;
         }
-        @keyframes slideUp { from { transform:translateY(30px); opacity:0; } to { transform:translateY(0); opacity:1; } }
+        @keyframes slideUp {
+            from {
+                transform: translateY(30px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
         .modal-content .modal-close {
-            position:absolute; top:12px; right:16px; font-size:24px; background:none; border:none; color:var(--text-light);
-            cursor:pointer; padding:4px 8px; border-radius:8px;
+            position: absolute;
+            top: 12px;
+            right: 16px;
+            font-size: 24px;
+            background: none;
+            border: none;
+            color: var(--text-light);
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 8px;
         }
-        .modal-content .modal-close:hover { background:var(--bg); }
-        .modal-content h2 { font-size:20px; font-weight:700; margin-bottom:18px; padding-right:30px; }
-        .modal-content .text-muted { color:var(--text-light); }
-        .modal-content .text-small { font-size:13px; }
-
-        /* 底部导航 */
+        .modal-content .modal-close:hover {
+            background: var(--bg);
+        }
+        .modal-content h2 {
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 18px;
+            padding-right: 30px;
+        }
+        .modal-content .text-muted {
+            color: var(--text-light);
+        }
+        .modal-content .text-small {
+            font-size: 13px;
+        }
         .bottom-nav {
-            position:fixed; bottom:0; left:0; right:0; background:var(--card-bg);
-            display:flex; justify-content:space-around; align-items:center; padding:6px 0 calc(6px + var(--safe-bottom));
-            box-shadow:0 -2px 20px rgba(0,0,0,0.06); border-top:1px solid var(--border); z-index:50;
-            backdrop-filter:blur(12px); background:rgba(255,255,255,0.96);
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: var(--card-bg);
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            padding: 6px 0 calc(6px + var(--safe-bottom));
+            box-shadow: 0 -2px 20px rgba(0, 0, 0, 0.06);
+            border-top: 1px solid var(--border);
+            z-index: 50;
+            backdrop-filter: blur(12px);
+            background: rgba(255, 255, 255, 0.96);
         }
         .bottom-nav .nav-item {
-            display:flex; flex-direction:column; align-items:center; background:none; border:none; font-size:12px;
-            color:var(--text-light); cursor:pointer; padding:4px 12px; transition:var(--transition); gap:2px; font-weight:500;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background: none;
+            border: none;
+            font-size: 12px;
+            color: var(--text-light);
+            cursor: pointer;
+            padding: 4px 12px;
+            transition: var(--transition);
+            gap: 2px;
+            font-weight: 500;
         }
-        .bottom-nav .nav-item .nav-icon { font-size:22px; line-height:1.2; }
-        .bottom-nav .nav-item.active { color:var(--primary); }
-        .bottom-nav .nav-item .nav-label { font-size:10px; letter-spacing:0.3px; }
-
-        /* Toast */
+        .bottom-nav .nav-item .nav-icon {
+            font-size: 22px;
+            line-height: 1.2;
+        }
+        .bottom-nav .nav-item.active {
+            color: var(--primary);
+        }
+        .bottom-nav .nav-item .nav-label {
+            font-size: 10px;
+            letter-spacing: 0.3px;
+        }
         .toast {
-            position:fixed; bottom:100px; left:50%; transform:translateX(-50%) translateY(20px);
-            background:var(--text-primary); color:#fff; padding:12px 24px; border-radius:var(--radius-sm);
-            font-size:14px; font-weight:500; box-shadow:0 8px 30px rgba(0,0,0,0.2);
-            opacity:0; transition:all 0.4s ease; z-index:200; pointer-events:none; white-space:nowrap; max-width:90%;
+            position: fixed;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%) translateY(20px);
+            background: var(--text-primary);
+            color: #fff;
+            padding: 12px 24px;
+            border-radius: var(--radius-sm);
+            font-size: 14px;
+            font-weight: 500;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
+            opacity: 0;
+            transition: all 0.4s ease;
+            z-index: 200;
+            pointer-events: none;
+            white-space: nowrap;
+            max-width: 90%;
         }
-        .toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
-        .toast.success { background:var(--success); }
-        .toast.error { background:var(--danger); }
-        .toast.warning { background:var(--warning); }
-
-        /* 批次卡片 */
+        .toast.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+        .toast.success {
+            background: var(--success);
+        }
+        .toast.error {
+            background: var(--danger);
+        }
+        .toast.warning {
+            background: var(--warning);
+        }
         .batch-card {
-            border-left:4px solid var(--primary-light); margin-bottom:12px; padding:14px 16px;
-            background:#FAFBFF; border-radius:var(--radius-sm); transition:var(--transition); cursor:pointer;
+            border-left: 4px solid var(--primary-light);
+            margin-bottom: 12px;
+            padding: 14px 16px;
+            background: #FAFBFF;
+            border-radius: var(--radius-sm);
+            transition: var(--transition);
+            cursor: pointer;
         }
-        .batch-card:hover { background:#F0F5FF; }
-        .batch-card .batch-header { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; }
-        .batch-card .batch-name { font-weight:700; font-size:16px; }
-
-        /* 类别管理列表 */
-        .category-item { display:flex; justify-content:space-between; align-items:center; padding:8px 12px; border-bottom:1px solid var(--border); }
-        .category-item:last-child { border-bottom:none; }
-        .category-item .cat-name { font-weight:500; }
-        .category-item .cat-usage { font-size:12px; color:var(--text-light); margin-right:12px; }
-
-        /* 响应式 */
-        @media (max-width:640px) {
-            .app-header h1 { font-size:18px; }
-            .app-header h1 small { font-size:12px; }
-            .container { padding:0 12px; }
-            .modal-content { padding:20px 16px; }
-            .table-wrap { font-size:12px; }
-            th, td { padding:6px 8px; }
+        .batch-card:hover {
+            background: #F0F5FF;
         }
-        .text-muted { color:var(--text-light); }
-        .text-small { font-size:13px; }
+        .batch-card .batch-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .batch-card .batch-name {
+            font-weight: 700;
+            font-size: 16px;
+        }
+        .category-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
+            border-bottom: 1px solid var(--border);
+        }
+        .category-item:last-child {
+            border-bottom: none;
+        }
+        .category-item .cat-name {
+            font-weight: 500;
+        }
+        .category-item .cat-usage {
+            font-size: 12px;
+            color: var(--text-light);
+            margin-right: 12px;
+        }
+        @media (max-width: 640px) {
+            .app-header h1 {
+                font-size: 18px;
+            }
+            .app-header h1 small {
+                font-size: 12px;
+            }
+            .container {
+                padding: 0 12px;
+            }
+            .modal-content {
+                padding: 20px 16px;
+            }
+            .table-wrap {
+                font-size: 12px;
+            }
+            th,
+            td {
+                padding: 6px 8px;
+            }
+            .sync-status {
+                font-size: 11px;
+                padding: 2px 10px;
+            }
+            .sync-status .dot {
+                width: 8px;
+                height: 8px;
+            }
+        }
+        .text-muted {
+            color: var(--text-light);
+        }
+        .text-small {
+            font-size: 13px;
+        }
+        .share-banner {
+            background: #ECFDF5;
+            border: 1px solid #A7F3D0;
+            border-radius: var(--radius-sm);
+            padding: 10px 16px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+            font-size: 14px;
+            color: #065F46;
+        }
+        .share-banner .copy-btn {
+            background: var(--primary);
+            color: #fff;
+            border: none;
+            padding: 4px 16px;
+            border-radius: 6px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+        .share-banner .copy-btn:hover {
+            background: var(--primary-dark);
+        }
+        .share-banner .url-display {
+            flex: 1;
+            min-width: 180px;
+            font-size: 13px;
+            word-break: break-all;
+            background: #fff;
+            padding: 4px 10px;
+            border-radius: 4px;
+            border: 1px solid #A7F3D0;
+        }
     </style>
 </head>
 <body>
 
-    <!-- ====== 顶部导航 ====== -->
     <header class="app-header">
         <div class="container">
             <div class="header-inner">
-                <h1>🏭 生产预算 <small>小型企业版</small></h1>
-                <span class="header-date" id="headerDate"></span>
+                <h1>🏭 生产预算 <small>实时协作版</small></h1>
+                <div class="header-right">
+                    <span class="sync-status" id="syncStatus">
+                        <span class="dot offline" id="syncDot"></span>
+                        <span id="syncLabel">离线</span>
+                    </span>
+                    <span class="header-date" id="headerDate"></span>
+                </div>
             </div>
         </div>
     </header>
 
-    <!-- ====== 主容器 ====== -->
     <main class="container">
+        <div class="share-banner">
+            <span>🔗 分享此链接即可与团队实时同步数据</span>
+            <div class="url-display" id="shareUrlDisplay">加载中...</div>
+            <button class="copy-btn" id="copyShareUrl">📋 复制链接</button>
+        </div>
 
-        <!-- ===== 批次管理 ===== -->
         <section class="page active" id="pageBatches">
             <div class="flex-between section-title">
                 <span>📦 批次预算管理</span>
@@ -227,7 +660,6 @@
             <div id="batchListContainer"></div>
         </section>
 
-        <!-- ===== 月度支出预算 ===== -->
         <section class="page" id="pageExpenses">
             <div class="flex-between section-title">
                 <span>📅 月度支出预算</span>
@@ -240,29 +672,21 @@
             <div id="monthlyBudgetList"></div>
         </section>
 
-        <!-- ===== 预警看板 ===== -->
         <section class="page" id="pageAlerts">
             <div class="section-title"><span>🚨 预警看板</span></div>
             <div id="alertBoard"></div>
         </section>
-
     </main>
 
-    <!-- ====== 底部导航 ====== -->
     <nav class="bottom-nav" id="bottomNav">
         <button class="nav-item active" data-page="pageBatches"><span class="nav-icon">📦</span><span class="nav-label">批次</span></button>
         <button class="nav-item" data-page="pageExpenses"><span class="nav-icon">📅</span><span class="nav-label">支出</span></button>
         <button class="nav-item" data-page="pageAlerts"><span class="nav-icon">🚨</span><span class="nav-label">预警</span></button>
     </nav>
 
-    <!-- ====== Toast ====== -->
     <div class="toast" id="toast"></div>
 
-    <!-- ============================================================ -->
-    <!-- 模态框 -->
-    <!-- ============================================================ -->
-
-    <!-- 新建批次 -->
+    <!-- ====== 所有模态框 ====== -->
     <div class="modal-overlay" id="modalBatch">
         <div class="modal-content">
             <button class="modal-close" id="closeBatchModal">✕</button>
@@ -281,7 +705,6 @@
         </div>
     </div>
 
-    <!-- 编辑批次预算 -->
     <div class="modal-overlay" id="modalEditBatch">
         <div class="modal-content">
             <button class="modal-close" id="closeEditBatchModal">✕</button>
@@ -301,7 +724,6 @@
         </div>
     </div>
 
-    <!-- 录入批次实际支出 -->
     <div class="modal-overlay" id="modalBatchActual">
         <div class="modal-content">
             <button class="modal-close" id="closeBatchActualModal">✕</button>
@@ -326,7 +748,6 @@
         </div>
     </div>
 
-    <!-- 新建月度预算 -->
     <div class="modal-overlay" id="modalMonthlyBudget">
         <div class="modal-content">
             <button class="modal-close" id="closeMonthlyModal">✕</button>
@@ -345,7 +766,6 @@
         </div>
     </div>
 
-    <!-- 编辑月度预算 -->
     <div class="modal-overlay" id="modalEditMonthly">
         <div class="modal-content">
             <button class="modal-close" id="closeEditMonthlyModal">✕</button>
@@ -365,7 +785,6 @@
         </div>
     </div>
 
-    <!-- 录入月度实际支出 -->
     <div class="modal-overlay" id="modalMonthlyActual">
         <div class="modal-content">
             <button class="modal-close" id="closeMonthlyActualModal">✕</button>
@@ -390,14 +809,13 @@
         </div>
     </div>
 
-    <!-- 管理批次类别 -->
     <div class="modal-overlay" id="modalBatchCategoryManager">
         <div class="modal-content">
             <button class="modal-close" id="closeBatchCategoryModal">✕</button>
             <h2>⚙️ 管理批次类别</h2>
             <p class="text-muted text-small" style="margin-bottom:12px;">添加或删除批次预算类别。删除不会影响已有批次的数据。</p>
             <div style="display:flex; gap:8px; margin-bottom:16px;">
-                <input type="text" id="newBatchCategoryInput" placeholder="输入新类别名称（如：螺丝）" style="flex:1; padding:8px 12px; border:2px solid var(--border); border-radius:6px; font-size:14px;" />
+                <input type="text" id="newBatchCategoryInput" placeholder="输入新类别名称" style="flex:1; padding:8px 12px; border:2px solid var(--border); border-radius:6px; font-size:14px;" />
                 <button class="btn btn-primary" id="btnAddBatchCategory">+ 添加</button>
             </div>
             <div id="batchCategoryListContainer"></div>
@@ -407,14 +825,13 @@
         </div>
     </div>
 
-    <!-- 管理月度类别 -->
     <div class="modal-overlay" id="modalMonthlyCategoryManager">
         <div class="modal-content">
             <button class="modal-close" id="closeMonthlyCategoryModal">✕</button>
             <h2>⚙️ 管理月度类别</h2>
             <p class="text-muted text-small" style="margin-bottom:12px;">添加或删除月度支出类别。删除不会影响已有月份的数据。</p>
             <div style="display:flex; gap:8px; margin-bottom:16px;">
-                <input type="text" id="newMonthlyCategoryInput" placeholder="输入新类别名称（如：团建费）" style="flex:1; padding:8px 12px; border:2px solid var(--border); border-radius:6px; font-size:14px;" />
+                <input type="text" id="newMonthlyCategoryInput" placeholder="输入新类别名称" style="flex:1; padding:8px 12px; border:2px solid var(--border); border-radius:6px; font-size:14px;" />
                 <button class="btn btn-primary" id="btnAddMonthlyCategory">+ 添加</button>
             </div>
             <div id="monthlyCategoryListContainer"></div>
@@ -424,45 +841,104 @@
         </div>
     </div>
 
-
-    <!-- ============================================================ -->
-    <!-- JavaScript -->
-    <!-- ============================================================ -->
     <script>
-        // ============================================================
-        //  全局配置 & 数据
-        // ============================================================
+        // ================================================================
+        //  🔥 您的 Firebase 配置（已正确填写）
+        // ================================================================
+        const FIREBASE_CONFIG = {
+            apiKey: "AIzaSyAWTKeDGV1BT0LaWHyYJKMBV7PZGImh0vU",
+            authDomain: "qin-wang-s-budget-management.firebaseapp.com",
+            databaseURL: "https://qin-wang-s-budget-management-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "qin-wang-s-budget-management",
+            storageBucket: "qin-wang-s-budget-management.firebasestorage.app",
+            messagingSenderId: "468543796650",
+            appId: "1:468543796650:web:0306b54854649c6b6d27d3"
+        };
 
-        // ---- 批次类别（可动态管理） ----
-        let batchCategories = [];
-        const DEFAULT_BATCH_CATEGORIES = ['不锈钢板', '不锈钢管', '玻璃', '酸洗', '镀色', '激光', '外购成品', '包装', '配件'];
+        // ================================================================
+        //  初始化 Firebase
+        // ================================================================
+        let db = null;
+        let firebaseInitialized = false;
+        let currentProjectId = 'default';
 
-        function loadBatchCategories() {
+        function initFirebase() {
             try {
-                const raw = localStorage.getItem('prod_batch_categories');
-                if (raw) {
-                    const parsed = JSON.parse(raw);
-                    if (Array.isArray(parsed) && parsed.length > 0) {
-                        batchCategories = parsed;
-                        return;
-                    }
+                if (firebase.apps.length === 0) {
+                    firebase.initializeApp(FIREBASE_CONFIG);
                 }
-                batchCategories = [...DEFAULT_BATCH_CATEGORIES];
-                saveBatchCategories();
+                db = firebase.database();
+                firebaseInitialized = true;
+                updateSyncStatus(true);
+                console.log('✅ Firebase 初始化成功');
+                return true;
             } catch (e) {
-                batchCategories = [...DEFAULT_BATCH_CATEGORIES];
-                saveBatchCategories();
+                console.error('❌ Firebase 初始化失败:', e);
+                updateSyncStatus(false);
+                showToast('⚠️ Firebase 连接失败，请检查配置', 'error');
+                return false;
             }
         }
 
-        function saveBatchCategories() {
-            localStorage.setItem('prod_batch_categories', JSON.stringify(batchCategories));
+        // ================================================================
+        //  数据层
+        // ================================================================
+        function getRootRef() {
+            const params = new URLSearchParams(window.location.search);
+            currentProjectId = params.get('project') || 'default';
+            return db.ref('prod_budgets/' + currentProjectId);
         }
 
-        function getBatchCategories() { return batchCategories; }
+        function fetchAllData() {
+            return new Promise((resolve, reject) => {
+                if (!firebaseInitialized || !db) reject(new Error('Firebase not ready'));
+                getRootRef().once('value', snap => {
+                    const val = snap.val() || {};
+                    resolve({
+                        batches: val.batches || [],
+                        monthlyBudgets: val.monthlyBudgets || [],
+                        batchCategories: val.batchCategories || [],
+                        monthlyCategories: val.monthlyCategories || []
+                    });
+                }, reject);
+            });
+        }
 
-        // ---- 月度类别（可动态管理） ----
+        function saveAllData(data) {
+            return new Promise((resolve, reject) => {
+                if (!firebaseInitialized || !db) reject(new Error('Firebase not ready'));
+                getRootRef().set(data, err => err ? reject(err) : resolve());
+            });
+        }
+
+        function listenDataChange(callback) {
+            const ref = getRootRef();
+            const listener = ref.on('value', snap => {
+                const val = snap.val() || {};
+                callback({
+                    batches: val.batches || [],
+                    monthlyBudgets: val.monthlyBudgets || [],
+                    batchCategories: val.batchCategories || [],
+                    monthlyCategories: val.monthlyCategories || []
+                });
+            }, err => {
+                console.error('监听出错:', err);
+                updateSyncStatus(false);
+            });
+            return () => ref.off('value', listener);
+        }
+
+        // ================================================================
+        //  全局状态
+        // ================================================================
+        let batches = [];
+        let monthlyBudgets = [];
+        let batchCategories = [];
         let monthlyCategories = [];
+        let unlistenFn = null;
+        let pushPending = false;
+
+        const DEFAULT_BATCH_CATEGORIES = ['不锈钢板', '不锈钢管', '玻璃', '酸洗', '镀色', '激光', '外购成品', '包装', '配件'];
         const DEFAULT_MONTHLY_CATEGORIES = [
             '办公费用', '报销', '房租', '水电', '社保',
             '宁波办公室工资', '其他管理费用', '货代费', '佣金', '广告费',
@@ -470,123 +946,10 @@
             '员工餐', '氩气', '维修保养', '缠绕膜', '玻璃珠', '快递费'
         ];
 
-        function loadMonthlyCategories() {
-            try {
-                const raw = localStorage.getItem('prod_monthly_categories');
-                if (raw) {
-                    const parsed = JSON.parse(raw);
-                    if (Array.isArray(parsed) && parsed.length > 0) {
-                        monthlyCategories = parsed;
-                        return;
-                    }
-                }
-                monthlyCategories = [...DEFAULT_MONTHLY_CATEGORIES];
-                saveMonthlyCategories();
-            } catch (e) {
-                monthlyCategories = [...DEFAULT_MONTHLY_CATEGORIES];
-                saveMonthlyCategories();
-            }
-        }
-
-        function saveMonthlyCategories() {
-            localStorage.setItem('prod_monthly_categories', JSON.stringify(monthlyCategories));
-        }
-
-        function getMonthlyCategories() { return monthlyCategories; }
-
-        // ---- 批次数据 & 月度数据 ----
-        let batches = [];
-        let monthlyBudgets = [];
-
-        function loadData() {
-            try {
-                const rawB = localStorage.getItem('prod_batches');
-                batches = rawB ? JSON.parse(rawB) : getSampleBatches();
-                const rawM = localStorage.getItem('prod_monthly');
-                monthlyBudgets = rawM ? JSON.parse(rawM) : getSampleMonthly();
-                saveData();
-            } catch (e) {
-                batches = getSampleBatches();
-                monthlyBudgets = getSampleMonthly();
-                saveData();
-            }
-        }
-
-        function saveData() {
-            localStorage.setItem('prod_batches', JSON.stringify(batches));
-            localStorage.setItem('prod_monthly', JSON.stringify(monthlyBudgets));
-        }
-
-        function getSampleBatches() {
-            return [{
-                id: 'batch1',
-                name: 'B202508-01 (客户A)',
-                budgetItems: [
-                    { category: '不锈钢板', budget: 12000 },
-                    { category: '不锈钢管', budget: 8000 },
-                    { category: '玻璃', budget: 5000 },
-                    { category: '酸洗', budget: 3000 },
-                    { category: '镀色', budget: 4000 },
-                    { category: '激光', budget: 2500 },
-                    { category: '外购成品', budget: 6000 },
-                    { category: '包装', budget: 1500 },
-                    { category: '配件', budget: 2200 }
-                ],
-                actuals: [
-                    { category: '不锈钢板', amount: 11000, date: '2025-08-05' },
-                    { category: '酸洗', amount: 2800, date: '2025-08-07' },
-                    { category: '镀色', amount: 4200, date: '2025-08-10' },
-                    { category: '外购成品', amount: 6500, date: '2025-08-12' },
-                    { category: '配件', amount: 2100, date: '2025-08-14' }
-                ]
-            }, {
-                id: 'batch2',
-                name: 'B202508-02 (客户B)',
-                budgetItems: [
-                    { category: '不锈钢板', budget: 8000 },
-                    { category: '不锈钢管', budget: 6000 },
-                    { category: '玻璃', budget: 3000 },
-                    { category: '酸洗', budget: 2000 },
-                    { category: '镀色', budget: 2500 },
-                    { category: '激光', budget: 1800 },
-                    { category: '外购成品', budget: 4000 },
-                    { category: '包装', budget: 1000 },
-                    { category: '配件', budget: 1500 }
-                ],
-                actuals: [
-                    { category: '不锈钢板', amount: 8500, date: '2025-08-08' },
-                    { category: '不锈钢管', amount: 5500, date: '2025-08-09' },
-                    { category: '激光', amount: 1900, date: '2025-08-11' },
-                    { category: '配件', amount: 1600, date: '2025-08-13' }
-                ]
-            }];
-        }
-
-        function getSampleMonthly() {
-            const cats = getMonthlyCategories().slice(0, 6);
-            const budgetItems = cats.map(cat => ({
-                category: cat,
-                budget: cat === '房租' ? 8000 :
-                    cat === '社保' ? 6000 :
-                    cat === '宁波办公室工资' ? 50000 :
-                    cat === '办公费用' ? 3000 :
-                    cat === '报销' ? 2000 :
-                    cat === '水电' ? 1500 : 0
-            }));
-            const actuals = [
-                { category: '办公费用', amount: 2800, date: '2025-08-03' },
-                { category: '房租', amount: 8000, date: '2025-08-05' },
-                { category: '社保', amount: 6200, date: '2025-08-15' },
-                { category: '宁波办公室工资', amount: 51000, date: '2025-08-20' }
-            ];
-            return [{ month: '2025-08', budgetItems, actuals }];
-        }
-
-        function generateId() { return 'id_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6); }
-
-        // ============================================================
+        // ================================================================
         //  工具函数
-        // ============================================================
+        // ================================================================
+        function generateId() { return 'id_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6); }
 
         function formatCurrency(v) { return '¥' + Number(v).toFixed(2); }
 
@@ -641,10 +1004,9 @@
             return `${y}-${m}-${day}`;
         }
 
-        // ============================================================
-        //  CSV 导出（批次 + 月度）
-        // ============================================================
-
+        // ================================================================
+        //  CSV 导出（简略）
+        // ================================================================
         function downloadCSV(csvString, filename) {
             const BOM = '\uFEFF';
             const blob = new Blob([BOM + csvString], { type: 'text/csv;charset=utf-8;' });
@@ -658,14 +1020,13 @@
             URL.revokeObjectURL(url);
         }
 
-        // ---- 批次导出 ----
         function downloadBatchCSV(batchId) {
             const batch = batches.find(b => b.id === batchId);
             if (!batch) { showToast('批次不存在', 'error'); return; }
             const rows = [
                 ['批次名称', '类别', '预算金额', '实际支出', '差异', '差异百分比(%)', '完成率(%)']
             ];
-            const cats = getBatchCategories();
+            const cats = batchCategories.length ? batchCategories : DEFAULT_BATCH_CATEGORIES;
             cats.forEach(cat => {
                 const budget = getCategoryBudget(batch, cat);
                 const actual = getCategoryActual(batch, cat);
@@ -702,7 +1063,7 @@
             const rows = [
                 ['批次名称', '类别', '预算金额', '实际支出', '差异', '差异百分比(%)', '完成率(%)']
             ];
-            const cats = getBatchCategories();
+            const cats = batchCategories.length ? batchCategories : DEFAULT_BATCH_CATEGORIES;
             batches.forEach(batch => {
                 cats.forEach(cat => {
                     const budget = getCategoryBudget(batch, cat);
@@ -729,20 +1090,17 @@
             showToast('全部批次数据下载成功', 'success');
         }
 
-        // ---- 月度导出（新增） ----
         function downloadMonthlyCSV(month) {
             const monthly = monthlyBudgets.find(m => m.month === month);
             if (!monthly) { showToast('月度数据不存在', 'error'); return; }
             const rows = [
                 ['月份', '类别', '预算金额', '实际支出', '差异', '差异百分比(%)', '完成率(%)']
             ];
-            const cats = getMonthlyCategories();
-            // 获取该月份实际存在的类别（包含有预算或有实际支出的）
+            const cats = monthlyCategories.length ? monthlyCategories : DEFAULT_MONTHLY_CATEGORIES;
             const existingCats = new Set([
                 ...monthly.budgetItems.map(i => i.category),
                 ...monthly.actuals.map(a => a.category)
             ]);
-            // 若没有实际类别，则使用全部类别（显示0）
             const displayCats = existingCats.size > 0 ? [...existingCats] : cats;
             displayCats.forEach(cat => {
                 const budgetItem = monthly.budgetItems.find(i => i.category === cat);
@@ -781,7 +1139,7 @@
             const rows = [
                 ['月份', '类别', '预算金额', '实际支出', '差异', '差异百分比(%)', '完成率(%)']
             ];
-            const cats = getMonthlyCategories();
+            const cats = monthlyCategories.length ? monthlyCategories : DEFAULT_MONTHLY_CATEGORIES;
             monthlyBudgets.forEach(monthly => {
                 const existingCats = new Set([
                     ...monthly.budgetItems.map(i => i.category),
@@ -792,7 +1150,7 @@
                     const budgetItem = monthly.budgetItems.find(i => i.category === cat);
                     const budget = budgetItem ? budgetItem.budget : 0;
                     const actual = monthly.actuals.filter(a => a.category === cat).reduce((s, a) => s + a
-                    .amount, 0);
+                        .amount, 0);
                     const diff = actual - budget;
                     const diffPercent = budget > 0 ? (diff / budget) * 100 : 0;
                     const completePercent = budget > 0 ? (actual / budget) * 100 : 0;
@@ -815,10 +1173,9 @@
             showToast('全部月度数据下载成功', 'success');
         }
 
-        // ============================================================
+        // ================================================================
         //  渲染函数
-        // ============================================================
-
+        // ================================================================
         function renderHeaderDate() {
             const now = new Date();
             document.getElementById('headerDate').textContent =
@@ -879,7 +1236,6 @@
             });
             container.innerHTML = html;
 
-            // 事件绑定
             container.querySelectorAll('.view-batch-detail').forEach(btn => {
                 btn.addEventListener('click', e => { e.stopPropagation();
                     showBatchDetail(btn.dataset.id); });
@@ -901,9 +1257,9 @@
                     e.stopPropagation();
                     if (confirm('确定删除该批次及其所有数据吗？')) {
                         batches = batches.filter(b => b.id !== btn.dataset.id);
-                        saveData();
-                        renderAll();
-                        showToast('批次已删除', 'success');
+                        pushDataToFirebase()
+                            .then(() => showToast('批次已删除', 'success'))
+                            .catch(() => showToast('删除失败', 'error'));
                     }
                 });
             });
@@ -915,7 +1271,7 @@
         function showBatchDetail(id) {
             const batch = batches.find(b => b.id === id);
             if (!batch) return;
-            const cats = getBatchCategories();
+            const cats = batchCategories.length ? batchCategories : DEFAULT_BATCH_CATEGORIES;
             let detailHtml =
                 `<div style="margin-bottom:12px;"><strong>${batch.name}</strong><span class="text-muted text-small" style="margin-left:12px;">总预算: ${formatCurrency(getBatchTotalBudget(batch))}</span><span class="text-muted text-small">已支出: ${formatCurrency(getBatchTotalActual(batch))}</span></div>
                 <div class="table-wrap"><table><thead><tr><th>类别</th><th>预算</th><th>实际</th><th>差异</th><th>完成%</th></tr></thead><tbody>`;
@@ -924,7 +1280,8 @@
                 const actual = getCategoryActual(batch, cat);
                 const diff = actual - budget;
                 const percent = budget > 0 ? (actual / budget) * 100 : 0;
-                const diffColor = diff > 0 ? 'var(--danger)' : (diff < 0 ? 'var(--success)' : 'var(--text-secondary)');
+                const diffColor = diff > 0 ? 'var(--danger)' : (diff < 0 ? 'var(--success)' :
+                'var(--text-secondary)');
                 detailHtml +=
                     `<tr><td>${cat}</td><td>${formatCurrency(budget)}</td><td>${formatCurrency(actual)}</td><td style="color:${diffColor};">${diff >= 0 ? '+' : ''}${formatCurrency(diff)}</td><td>${budget > 0 ? percent.toFixed(1) : '-'}%</td></tr>`;
             });
@@ -932,7 +1289,8 @@
             const totalActual = getBatchTotalActual(batch);
             const totalDiff = totalActual - totalBudget;
             const totalPercent = totalBudget > 0 ? (totalActual / totalBudget) * 100 : 0;
-            const totalColor = totalDiff > 0 ? 'var(--danger)' : (totalDiff < 0 ? 'var(--success)' : 'var(--text-secondary)');
+            const totalColor = totalDiff > 0 ? 'var(--danger)' : (totalDiff < 0 ? 'var(--success)' :
+            'var(--text-secondary)');
             detailHtml +=
                 `<tr style="font-weight:700;background:var(--bg);"><td>合计</td><td>${formatCurrency(totalBudget)}</td><td>${formatCurrency(totalActual)}</td><td style="color:${totalColor};">${totalDiff >= 0 ? '+' : ''}${formatCurrency(totalDiff)}</td><td>${totalBudget > 0 ? totalPercent.toFixed(1) : '-'}%</td></tr>`;
             detailHtml += `</tbody></table></div>`;
@@ -1044,9 +1402,9 @@
                     const month = this.dataset.month;
                     if (confirm(`确定删除 ${month} 的月度预算吗？`)) {
                         monthlyBudgets = monthlyBudgets.filter(m => m.month !== month);
-                        saveData();
-                        renderAll();
-                        showToast('月度预算已删除', 'success');
+                        pushDataToFirebase()
+                            .then(() => showToast('月度预算已删除', 'success'))
+                            .catch(() => showToast('删除失败', 'error'));
                     }
                 });
             });
@@ -1055,7 +1413,7 @@
         function showMonthlyDetail(month) {
             const monthly = monthlyBudgets.find(m => m.month === month);
             if (!monthly) return;
-            const cats = getMonthlyCategories();
+            const cats = monthlyCategories.length ? monthlyCategories : DEFAULT_MONTHLY_CATEGORIES;
             const allCats = [...new Set([...monthly.budgetItems.map(i => i.category), ...cats])];
             let detailHtml =
                 `<div style="margin-bottom:12px;"><strong>${month}</strong><span class="text-muted text-small" style="margin-left:12px;">总预算: ${formatCurrency(getMonthlyTotalBudget(monthly))}</span><span class="text-muted text-small">已支出: ${formatCurrency(getMonthlyTotalActual(monthly))}</span></div>
@@ -1066,7 +1424,8 @@
                 const actual = monthly.actuals.filter(a => a.category === cat).reduce((s, a) => s + a.amount, 0);
                 const diff = actual - budget;
                 const percent = budget > 0 ? (actual / budget) * 100 : 0;
-                const diffColor = diff > 0 ? 'var(--danger)' : (diff < 0 ? 'var(--success)' : 'var(--text-secondary)');
+                const diffColor = diff > 0 ? 'var(--danger)' : (diff < 0 ? 'var(--success)' :
+                'var(--text-secondary)');
                 detailHtml +=
                     `<tr><td>${cat}</td><td>${formatCurrency(budget)}</td><td>${formatCurrency(actual)}</td><td style="color:${diffColor};">${diff >= 0 ? '+' : ''}${formatCurrency(diff)}</td><td>${budget > 0 ? percent.toFixed(1) : '-'}%</td></tr>`;
             });
@@ -1074,7 +1433,8 @@
             const totalActual = getMonthlyTotalActual(monthly);
             const totalDiff = totalActual - totalBudget;
             const totalPercent = totalBudget > 0 ? (totalActual / totalBudget) * 100 : 0;
-            const totalColor = totalDiff > 0 ? 'var(--danger)' : (totalDiff < 0 ? 'var(--success)' : 'var(--text-secondary)');
+            const totalColor = totalDiff > 0 ? 'var(--danger)' : (totalDiff < 0 ? 'var(--success)' :
+            'var(--text-secondary)');
             detailHtml +=
                 `<tr style="font-weight:700;background:var(--bg);"><td>合计</td><td>${formatCurrency(totalBudget)}</td><td>${formatCurrency(totalActual)}</td><td style="color:${totalColor};">${totalDiff >= 0 ? '+' : ''}${formatCurrency(totalDiff)}</td><td>${totalBudget > 0 ? totalPercent.toFixed(1) : '-'}%</td></tr>`;
             detailHtml += `</tbody></table></div>`;
@@ -1186,17 +1546,239 @@
             renderAlerts();
         }
 
-        // ============================================================
-        //  模态框操作
-        // ============================================================
+        // ================================================================
+        //  数据同步（返回 Promise）
+        // ================================================================
+        function pushDataToFirebase() {
+            return new Promise((resolve, reject) => {
+                if (pushPending) {
+                    reject(new Error('正在同步中...'));
+                    return;
+                }
+                pushPending = true;
+                const data = {
+                    batches: batches,
+                    monthlyBudgets: monthlyBudgets,
+                    batchCategories: batchCategories,
+                    monthlyCategories: monthlyCategories
+                };
+                saveAllData(data).then(() => {
+                    pushPending = false;
+                    saveLocalCache(data);
+                    updateSyncStatus(true);
+                    resolve();
+                }).catch(err => {
+                    pushPending = false;
+                    console.error('保存到 Firebase 失败:', err);
+                    updateSyncStatus(false);
+                    reject(err);
+                });
+            });
+        }
 
-        // ---- 新建批次 ----
-        function openBatchModal() {
+        function saveLocalCache(data) {
+            try {
+                localStorage.setItem('prod_cache_' + currentProjectId, JSON.stringify(data));
+            } catch (e) { /* ignore */ }
+        }
+
+        function loadLocalCache() {
+            try {
+                const raw = localStorage.getItem('prod_cache_' + currentProjectId);
+                return raw ? JSON.parse(raw) : null;
+            } catch (e) { return null; }
+        }
+
+        function updateSyncStatus(online) {
+            const dot = document.getElementById('syncDot');
+            const label = document.getElementById('syncLabel');
+            if (online) {
+                dot.className = 'dot online';
+                label.textContent = '实时同步';
+            } else {
+                dot.className = 'dot offline';
+                label.textContent = '离线';
+            }
+        }
+
+        function onRemoteDataUpdate(data) {
+            if (pushPending) return; // 避免循环
+            batches = data.batches || [];
+            monthlyBudgets = data.monthlyBudgets || [];
+            batchCategories = data.batchCategories || [];
+            monthlyCategories = data.monthlyCategories || [];
+            saveLocalCache(data);
+            renderAll();
+            updateSyncStatus(true);
+        }
+
+        function startListening() {
+            if (unlistenFn) {
+                unlistenFn();
+                unlistenFn = null;
+            }
+            if (!firebaseInitialized || !db) return;
+            unlistenFn = listenDataChange(onRemoteDataUpdate);
+        }
+
+        // ================================================================
+        //  初始化数据
+        // ================================================================
+        function getSampleBatches() {
+            return [{
+                id: 'sample1',
+                name: 'B202508-01 (客户A)',
+                budgetItems: [
+                    { category: '不锈钢板', budget: 12000 },
+                    { category: '不锈钢管', budget: 8000 },
+                    { category: '玻璃', budget: 5000 },
+                    { category: '酸洗', budget: 3000 },
+                    { category: '镀色', budget: 4000 },
+                    { category: '激光', budget: 2500 },
+                    { category: '外购成品', budget: 6000 },
+                    { category: '包装', budget: 1500 },
+                    { category: '配件', budget: 2200 }
+                ],
+                actuals: [
+                    { category: '不锈钢板', amount: 11000, date: '2025-08-05' },
+                    { category: '酸洗', amount: 2800, date: '2025-08-07' },
+                    { category: '镀色', amount: 4200, date: '2025-08-10' },
+                    { category: '外购成品', amount: 6500, date: '2025-08-12' },
+                    { category: '配件', amount: 2100, date: '2025-08-14' }
+                ]
+            }, {
+                id: 'sample2',
+                name: 'B202508-02 (客户B)',
+                budgetItems: [
+                    { category: '不锈钢板', budget: 8000 },
+                    { category: '不锈钢管', budget: 6000 },
+                    { category: '玻璃', budget: 3000 },
+                    { category: '酸洗', budget: 2000 },
+                    { category: '镀色', budget: 2500 },
+                    { category: '激光', budget: 1800 },
+                    { category: '外购成品', budget: 4000 },
+                    { category: '包装', budget: 1000 },
+                    { category: '配件', budget: 1500 }
+                ],
+                actuals: [
+                    { category: '不锈钢板', amount: 8500, date: '2025-08-08' },
+                    { category: '不锈钢管', amount: 5500, date: '2025-08-09' },
+                    { category: '激光', amount: 1900, date: '2025-08-11' },
+                    { category: '配件', amount: 1600, date: '2025-08-13' }
+                ]
+            }];
+        }
+
+        function getSampleMonthly() {
+            const cats = DEFAULT_MONTHLY_CATEGORIES.slice(0, 6);
+            const budgetItems = cats.map(cat => ({
+                category: cat,
+                budget: cat === '房租' ? 8000 :
+                    cat === '社保' ? 6000 :
+                    cat === '宁波办公室工资' ? 50000 :
+                    cat === '办公费用' ? 3000 :
+                    cat === '报销' ? 2000 :
+                    cat === '水电' ? 1500 : 0
+            }));
+            const actuals = [
+                { category: '办公费用', amount: 2800, date: '2025-08-03' },
+                { category: '房租', amount: 8000, date: '2025-08-05' },
+                { category: '社保', amount: 6200, date: '2025-08-15' },
+                { category: '宁波办公室工资', amount: 51000, date: '2025-08-20' }
+            ];
+            return [{ month: '2025-08', budgetItems, actuals }];
+        }
+
+        function loadInitialData() {
+            const cache = loadLocalCache();
+            if (cache) {
+                batches = cache.batches || [];
+                monthlyBudgets = cache.monthlyBudgets || [];
+                batchCategories = cache.batchCategories || [];
+                monthlyCategories = cache.monthlyCategories || [];
+                renderAll();
+                updateSyncStatus(false);
+                console.log('📦 从本地缓存加载数据');
+            }
+
+            if (!firebaseInitialized || !db) {
+                showToast('⚠️ Firebase 未连接，请检查配置', 'error');
+                return;
+            }
+
+            fetchAllData().then((data) => {
+                if (data.batches.length || data.monthlyBudgets.length || data.batchCategories.length || data
+                    .monthlyCategories.length) {
+                    batches = data.batches;
+                    monthlyBudgets = data.monthlyBudgets;
+                    batchCategories = data.batchCategories.length ? data.batchCategories : DEFAULT_BATCH_CATEGORIES;
+                    monthlyCategories = data.monthlyCategories.length ? data.monthlyCategories :
+                        DEFAULT_MONTHLY_CATEGORIES;
+                    saveLocalCache(data);
+                    renderAll();
+                    updateSyncStatus(true);
+                    console.log('☁️ 从 Firebase 加载数据');
+                } else {
+                    if (!cache) {
+                        batchCategories = [...DEFAULT_BATCH_CATEGORIES];
+                        monthlyCategories = [...DEFAULT_MONTHLY_CATEGORIES];
+                        batches = getSampleBatches();
+                        monthlyBudgets = getSampleMonthly();
+                        renderAll();
+                        pushDataToFirebase().catch(() => {});
+                        console.log('📝 初始化默认数据');
+                    }
+                }
+                startListening();
+            }).catch((err) => {
+                console.error('加载数据失败:', err);
+                if (cache) {
+                    batches = cache.batches || [];
+                    monthlyBudgets = cache.monthlyBudgets || [];
+                    batchCategories = cache.batchCategories || [];
+                    monthlyCategories = cache.monthlyCategories || [];
+                    renderAll();
+                    updateSyncStatus(false);
+                    showToast('⚠️ 使用本地缓存数据', 'warning');
+                } else {
+                    batchCategories = [...DEFAULT_BATCH_CATEGORIES];
+                    monthlyCategories = [...DEFAULT_MONTHLY_CATEGORIES];
+                    batches = getSampleBatches();
+                    monthlyBudgets = getSampleMonthly();
+                    renderAll();
+                    showToast('⚠️ 使用示例数据', 'warning');
+                }
+            });
+        }
+
+        // ================================================================
+        //  模态框操作（全部保留）
+        // ================================================================
+        function closeBatchModal() { document.getElementById('modalBatch').classList.remove('show'); }
+
+        function closeEditBatchModal() { document.getElementById('modalEditBatch').classList.remove('show'); }
+
+        function closeBatchActualModal() { document.getElementById('modalBatchActual').classList.remove('show'); }
+
+        function closeMonthlyModal() { document.getElementById('modalMonthlyBudget').classList.remove('show'); }
+
+        function closeEditMonthlyModal() { document.getElementById('modalEditMonthly').classList.remove('show'); }
+
+        function closeMonthlyActualModal() { document.getElementById('modalMonthlyActual').classList.remove('show'); }
+
+        function closeBatchCategoryModal() { document.getElementById('modalBatchCategoryManager').classList.remove('show'); }
+
+        function closeMonthlyCategoryModal() { document.getElementById('modalMonthlyCategoryManager').classList.remove(
+            'show'); }
+
+        // 新建批次
+        document.getElementById('btnAddBatch').addEventListener('click', function() {
             const modal = document.getElementById('modalBatch');
             modal.classList.add('show');
             const container = document.getElementById('budgetItemsContainer');
             let html = '';
-            getBatchCategories().forEach(cat => {
+            const cats = batchCategories.length ? batchCategories : DEFAULT_BATCH_CATEGORIES;
+            cats.forEach(cat => {
                 html += `
                     <div style="display:flex; gap:8px; align-items:center; margin-bottom:6px;">
                         <label style="width:80px; font-weight:500;">${cat}</label>
@@ -1207,13 +1789,11 @@
             container.innerHTML = html;
             document.getElementById('batchName').value = '';
             document.getElementById('batchForm').reset();
-        }
+        });
 
-        function closeBatchModal() { document.getElementById('modalBatch').classList.remove('show'); }
-
-        document.getElementById('btnAddBatch').addEventListener('click', openBatchModal);
         document.getElementById('closeBatchModal').addEventListener('click', closeBatchModal);
-        document.getElementById('modalBatch').addEventListener('click', function(e) { if (e.target === this) closeBatchModal(); });
+        document.getElementById('modalBatch').addEventListener('click', function(e) { if (e.target === this)
+            closeBatchModal(); });
 
         document.getElementById('batchForm').addEventListener('submit', function(e) {
             e.preventDefault();
@@ -1228,13 +1808,20 @@
             });
             if (budgetItems.length === 0) { showToast('请至少输入一项预算金额', 'error'); return; }
             batches.push({ id: generateId(), name, budgetItems, actuals: [] });
-            saveData();
-            closeBatchModal();
-            renderAll();
-            showToast(`批次 "${name}" 创建成功`, 'success');
+            // 保存并等待完成
+            pushDataToFirebase()
+                .then(() => {
+                    closeBatchModal();
+                    renderAll();
+                    showToast(`批次 "${name}" 创建成功`, 'success');
+                })
+                .catch((err) => {
+                    console.error('保存失败:', err);
+                    showToast('保存失败，请检查网络或Firebase配置', 'error');
+                });
         });
 
-        // ---- 编辑批次预算 ----
+        // 编辑批次
         function openEditBatchModal(batchId) {
             const batch = batches.find(b => b.id === batchId);
             if (!batch) { showToast('批次不存在', 'error'); return; }
@@ -1242,7 +1829,8 @@
             document.getElementById('editBatchName').value = batch.name;
             const container = document.getElementById('editBudgetItemsContainer');
             let html = '';
-            getBatchCategories().forEach(cat => {
+            const cats = batchCategories.length ? batchCategories : DEFAULT_BATCH_CATEGORIES;
+            cats.forEach(cat => {
                 const curBudget = getCategoryBudget(batch, cat);
                 html += `
                     <div style="display:flex; gap:8px; align-items:center; margin-bottom:6px;">
@@ -1255,11 +1843,9 @@
             document.getElementById('modalEditBatch').classList.add('show');
         }
 
-        function closeEditBatchModal() { document.getElementById('modalEditBatch').classList.remove('show'); }
-
         document.getElementById('closeEditBatchModal').addEventListener('click', closeEditBatchModal);
         document.getElementById('modalEditBatch').addEventListener('click', function(e) { if (e.target === this)
-            closeEditBatchModal(); });
+                closeEditBatchModal(); });
 
         document.getElementById('editBatchForm').addEventListener('submit', function(e) {
             e.preventDefault();
@@ -1275,13 +1861,16 @@
             });
             if (budgetItems.length === 0) { showToast('请至少保留一项预算金额', 'error'); return; }
             batch.budgetItems = budgetItems;
-            saveData();
-            closeEditBatchModal();
-            renderAll();
-            showToast(`批次 "${batch.name}" 预算已更新`, 'success');
+            pushDataToFirebase()
+                .then(() => {
+                    closeEditBatchModal();
+                    renderAll();
+                    showToast(`批次 "${batch.name}" 预算已更新`, 'success');
+                })
+                .catch(() => showToast('更新失败', 'error'));
         });
 
-        // ---- 批次实际支出 ----
+        // 录入批次实际支出
         function openBatchActualModal(batchId) {
             const batch = batches.find(b => b.id === batchId);
             if (!batch) return;
@@ -1291,7 +1880,8 @@
             select.innerHTML = '';
             const categories = batch.budgetItems.map(item => item.category);
             if (categories.length === 0) {
-                getBatchCategories().forEach(c => {
+                const cats = batchCategories.length ? batchCategories : DEFAULT_BATCH_CATEGORIES;
+                cats.forEach(c => {
                     const opt = document.createElement('option');
                     opt.value = c;
                     opt.textContent = c;
@@ -1310,8 +1900,6 @@
             document.getElementById('modalBatchActual').classList.add('show');
         }
 
-        function closeBatchActualModal() { document.getElementById('modalBatchActual').classList.remove('show'); }
-
         document.getElementById('closeBatchActualModal').addEventListener('click', closeBatchActualModal);
         document.getElementById('modalBatchActual').addEventListener('click', function(e) { if (e.target === this)
                 closeBatchActualModal(); });
@@ -1327,19 +1915,23 @@
             const batch = batches.find(b => b.id === batchId);
             if (!batch) { showToast('批次不存在', 'error'); return; }
             batch.actuals.push({ category, amount, date });
-            saveData();
-            closeBatchActualModal();
-            renderAll();
-            showToast(`支出 ${formatCurrency(amount)} 已录入`, 'success');
+            pushDataToFirebase()
+                .then(() => {
+                    closeBatchActualModal();
+                    renderAll();
+                    showToast(`支出 ${formatCurrency(amount)} 已录入`, 'success');
+                })
+                .catch(() => showToast('录入失败', 'error'));
         });
 
-        // ---- 新建月度预算 ----
-        function openMonthlyModal() {
+        // 新建月度预算
+        document.getElementById('btnAddMonthlyBudget').addEventListener('click', function() {
             const modal = document.getElementById('modalMonthlyBudget');
             modal.classList.add('show');
             const container = document.getElementById('monthlyItemsContainer');
             let html = '';
-            getMonthlyCategories().forEach(cat => {
+            const cats = monthlyCategories.length ? monthlyCategories : DEFAULT_MONTHLY_CATEGORIES;
+            cats.forEach(cat => {
                 html += `
                     <div style="display:flex; gap:8px; align-items:center; margin-bottom:6px;">
                         <label style="width:100px; font-weight:500;">${cat}</label>
@@ -1349,11 +1941,8 @@
             });
             container.innerHTML = html;
             document.getElementById('monthlyMonth').value = '';
-        }
+        });
 
-        function closeMonthlyModal() { document.getElementById('modalMonthlyBudget').classList.remove('show'); }
-
-        document.getElementById('btnAddMonthlyBudget').addEventListener('click', openMonthlyModal);
         document.getElementById('closeMonthlyModal').addEventListener('click', closeMonthlyModal);
         document.getElementById('modalMonthlyBudget').addEventListener('click', function(e) { if (e.target === this)
                 closeMonthlyModal(); });
@@ -1375,13 +1964,16 @@
             });
             if (budgetItems.length === 0) { showToast('请至少输入一项预算金额', 'error'); return; }
             monthlyBudgets.push({ month, budgetItems, actuals: [] });
-            saveData();
-            closeMonthlyModal();
-            renderAll();
-            showToast(`月度预算 ${month} 创建成功`, 'success');
+            pushDataToFirebase()
+                .then(() => {
+                    closeMonthlyModal();
+                    renderAll();
+                    showToast(`月度预算 ${month} 创建成功`, 'success');
+                })
+                .catch(() => showToast('创建失败', 'error'));
         });
 
-        // ---- 编辑月度预算 ----
+        // 编辑月度预算
         function openEditMonthlyModal(month) {
             const monthly = monthlyBudgets.find(m => m.month === month);
             if (!monthly) { showToast('月度预算不存在', 'error'); return; }
@@ -1389,7 +1981,8 @@
             document.getElementById('editMonthlyMonthDisplay').value = month;
             const container = document.getElementById('editMonthlyItemsContainer');
             let html = '';
-            getMonthlyCategories().forEach(cat => {
+            const cats = monthlyCategories.length ? monthlyCategories : DEFAULT_MONTHLY_CATEGORIES;
+            cats.forEach(cat => {
                 const budgetItem = monthly.budgetItems.find(i => i.category === cat);
                 const curBudget = budgetItem ? budgetItem.budget : 0;
                 html += `
@@ -1402,8 +1995,6 @@
             container.innerHTML = html;
             document.getElementById('modalEditMonthly').classList.add('show');
         }
-
-        function closeEditMonthlyModal() { document.getElementById('modalEditMonthly').classList.remove('show'); }
 
         document.getElementById('closeEditMonthlyModal').addEventListener('click', closeEditMonthlyModal);
         document.getElementById('modalEditMonthly').addEventListener('click', function(e) { if (e.target === this)
@@ -1423,13 +2014,16 @@
             });
             if (budgetItems.length === 0) { showToast('请至少保留一项预算金额', 'error'); return; }
             monthly.budgetItems = budgetItems;
-            saveData();
-            closeEditMonthlyModal();
-            renderAll();
-            showToast(`月度预算 ${month} 已更新`, 'success');
+            pushDataToFirebase()
+                .then(() => {
+                    closeEditMonthlyModal();
+                    renderAll();
+                    showToast(`月度预算 ${month} 已更新`, 'success');
+                })
+                .catch(() => showToast('更新失败', 'error'));
         });
 
-        // ---- 月度实际支出 ----
+        // 录入月度实际支出
         function openMonthlyActualModal(month) {
             const monthly = monthlyBudgets.find(m => m.month === month);
             if (!monthly) return;
@@ -1438,18 +2032,26 @@
             const select = document.getElementById('monthlyActualCategory');
             select.innerHTML = '';
             const categories = monthly.budgetItems.map(item => item.category);
-            categories.forEach(c => {
-                const opt = document.createElement('option');
-                opt.value = c;
-                opt.textContent = c;
-                select.appendChild(opt);
-            });
+            if (categories.length === 0) {
+                const cats = monthlyCategories.length ? monthlyCategories : DEFAULT_MONTHLY_CATEGORIES;
+                cats.forEach(c => {
+                    const opt = document.createElement('option');
+                    opt.value = c;
+                    opt.textContent = c;
+                    select.appendChild(opt);
+                });
+            } else {
+                categories.forEach(c => {
+                    const opt = document.createElement('option');
+                    opt.value = c;
+                    opt.textContent = c;
+                    select.appendChild(opt);
+                });
+            }
             document.getElementById('monthlyActualAmount').value = '';
             document.getElementById('monthlyActualDate').value = formatDate(new Date());
             document.getElementById('modalMonthlyActual').classList.add('show');
         }
-
-        function closeMonthlyActualModal() { document.getElementById('modalMonthlyActual').classList.remove('show'); }
 
         document.getElementById('closeMonthlyActualModal').addEventListener('click', closeMonthlyActualModal);
         document.getElementById('modalMonthlyActual').addEventListener('click', function(e) { if (e.target === this)
@@ -1466,25 +2068,27 @@
             const monthly = monthlyBudgets.find(m => m.month === month);
             if (!monthly) { showToast('月度预算不存在', 'error'); return; }
             monthly.actuals.push({ category, amount, date });
-            saveData();
-            closeMonthlyActualModal();
-            renderAll();
-            showToast(`支出 ${formatCurrency(amount)} 已录入`, 'success');
+            pushDataToFirebase()
+                .then(() => {
+                    closeMonthlyActualModal();
+                    renderAll();
+                    showToast(`支出 ${formatCurrency(amount)} 已录入`, 'success');
+                })
+                .catch(() => showToast('录入失败', 'error'));
         });
 
-        // ============================================================
+        // ================================================================
         //  类别管理（批次 & 月度）
-        // ============================================================
-
-        // ---- 批次类别管理 ----
+        // ================================================================
         function renderBatchCategoryManager() {
             const container = document.getElementById('batchCategoryListContainer');
-            if (batchCategories.length === 0) {
+            const cats = batchCategories.length ? batchCategories : DEFAULT_BATCH_CATEGORIES;
+            if (cats.length === 0) {
                 container.innerHTML = `<p class="text-muted text-small">暂无类别，请添加。</p>`;
                 return;
             }
             let html = '';
-            batchCategories.forEach(cat => {
+            cats.forEach(cat => {
                 const usageCount = batches.filter(b =>
                     b.budgetItems.some(item => item.category === cat) ||
                     b.actuals.some(a => a.category === cat)
@@ -1515,22 +2119,22 @@
                         if (!confirm(`确定要删除类别「${cat}」吗？`)) return;
                     }
                     batchCategories = batchCategories.filter(c => c !== cat);
-                    saveBatchCategories();
-                    renderBatchCategoryManager();
-                    showToast(`已删除类别「${cat}」`, 'success');
+                    pushDataToFirebase()
+                        .then(() => {
+                            renderBatchCategoryManager();
+                            showToast(`已删除类别「${cat}」`, 'success');
+                        })
+                        .catch(() => showToast('删除失败', 'error'));
                 });
             });
         }
 
-        function openBatchCategoryModal() {
+        document.getElementById('btnManageBatchCategories').addEventListener('click', function() {
             document.getElementById('modalBatchCategoryManager').classList.add('show');
             renderBatchCategoryManager();
             document.getElementById('newBatchCategoryInput').value = '';
-        }
+        });
 
-        function closeBatchCategoryModal() { document.getElementById('modalBatchCategoryManager').classList.remove('show'); }
-
-        document.getElementById('btnManageBatchCategories').addEventListener('click', openBatchCategoryModal);
         document.getElementById('closeBatchCategoryModal').addEventListener('click', closeBatchCategoryModal);
         document.getElementById('modalBatchCategoryManager').addEventListener('click', function(e) { if (e.target === this)
                 closeBatchCategoryModal(); });
@@ -1541,24 +2145,24 @@
             if (!val) { showToast('请输入类别名称', 'error'); return; }
             if (batchCategories.includes(val)) { showToast('该类别已存在', 'error'); return; }
             batchCategories.push(val);
-            saveBatchCategories();
-            renderBatchCategoryManager();
-            input.value = '';
-            showToast(`已添加类别「${val}」`, 'success');
-        });
-        document.getElementById('newBatchCategoryInput').addEventListener('keyup', function(e) {
-            if (e.key === 'Enter') document.getElementById('btnAddBatchCategory').click();
+            pushDataToFirebase()
+                .then(() => {
+                    renderBatchCategoryManager();
+                    input.value = '';
+                    showToast(`已添加类别「${val}」`, 'success');
+                })
+                .catch(() => showToast('添加失败', 'error'));
         });
 
-        // ---- 月度类别管理 ----
         function renderMonthlyCategoryManager() {
             const container = document.getElementById('monthlyCategoryListContainer');
-            if (monthlyCategories.length === 0) {
+            const cats = monthlyCategories.length ? monthlyCategories : DEFAULT_MONTHLY_CATEGORIES;
+            if (cats.length === 0) {
                 container.innerHTML = `<p class="text-muted text-small">暂无类别，请添加。</p>`;
                 return;
             }
             let html = '';
-            monthlyCategories.forEach(cat => {
+            cats.forEach(cat => {
                 const usageCount = monthlyBudgets.filter(m =>
                     m.budgetItems.some(item => item.category === cat) ||
                     m.actuals.some(a => a.category === cat)
@@ -1589,23 +2193,22 @@
                         if (!confirm(`确定要删除类别「${cat}」吗？`)) return;
                     }
                     monthlyCategories = monthlyCategories.filter(c => c !== cat);
-                    saveMonthlyCategories();
-                    renderMonthlyCategoryManager();
-                    showToast(`已删除类别「${cat}」`, 'success');
+                    pushDataToFirebase()
+                        .then(() => {
+                            renderMonthlyCategoryManager();
+                            showToast(`已删除类别「${cat}」`, 'success');
+                        })
+                        .catch(() => showToast('删除失败', 'error'));
                 });
             });
         }
 
-        function openMonthlyCategoryModal() {
+        document.getElementById('btnManageMonthlyCategories').addEventListener('click', function() {
             document.getElementById('modalMonthlyCategoryManager').classList.add('show');
             renderMonthlyCategoryManager();
             document.getElementById('newMonthlyCategoryInput').value = '';
-        }
+        });
 
-        function closeMonthlyCategoryModal() { document.getElementById('modalMonthlyCategoryManager').classList.remove(
-            'show'); }
-
-        document.getElementById('btnManageMonthlyCategories').addEventListener('click', openMonthlyCategoryModal);
         document.getElementById('closeMonthlyCategoryModal').addEventListener('click', closeMonthlyCategoryModal);
         document.getElementById('modalMonthlyCategoryManager').addEventListener('click', function(e) { if (e.target === this)
                 closeMonthlyCategoryModal(); });
@@ -1616,19 +2219,18 @@
             if (!val) { showToast('请输入类别名称', 'error'); return; }
             if (monthlyCategories.includes(val)) { showToast('该类别已存在', 'error'); return; }
             monthlyCategories.push(val);
-            saveMonthlyCategories();
-            renderMonthlyCategoryManager();
-            input.value = '';
-            showToast(`已添加类别「${val}」`, 'success');
-        });
-        document.getElementById('newMonthlyCategoryInput').addEventListener('keyup', function(e) {
-            if (e.key === 'Enter') document.getElementById('btnAddMonthlyCategory').click();
+            pushDataToFirebase()
+                .then(() => {
+                    renderMonthlyCategoryManager();
+                    input.value = '';
+                    showToast(`已添加类别「${val}」`, 'success');
+                })
+                .catch(() => showToast('添加失败', 'error'));
         });
 
-        // ============================================================
+        // ================================================================
         //  Toast & 导航
-        // ============================================================
-
+        // ================================================================
         let toastTimer;
 
         function showToast(msg, type = '') {
@@ -1657,7 +2259,6 @@
             });
         });
 
-        // ---- 筛选 ----
         document.getElementById('btnFilterBatch').addEventListener('click', renderBatches);
         document.getElementById('btnClearFilter').addEventListener('click', function() {
             document.getElementById('batchFilter').value = '';
@@ -1667,24 +2268,67 @@
             if (e.key === 'Enter') renderBatches();
         });
 
-        // ---- 下载全部批次 ----
         document.getElementById('btnDownloadAllBatches').addEventListener('click', downloadAllBatchesCSV);
-        // ---- 下载全部月度 ----
         document.getElementById('btnDownloadAllMonthly').addEventListener('click', downloadAllMonthlyCSV);
 
-        // ============================================================
+        // ================================================================
+        //  分享链接
+        // ================================================================
+        function updateShareUrl() {
+            const url = window.location.href.split('?')[0];
+            const params = new URLSearchParams(window.location.search);
+            const project = params.get('project') || 'default';
+            const shareUrl = url + '?project=' + encodeURIComponent(project);
+            document.getElementById('shareUrlDisplay').textContent = shareUrl;
+            return shareUrl;
+        }
+
+        document.getElementById('copyShareUrl').addEventListener('click', function() {
+            const url = updateShareUrl();
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(url).then(() => {
+                    showToast('✅ 链接已复制，分享给团队成员即可同步', 'success');
+                }).catch(() => {
+                    fallbackCopy(url);
+                });
+            } else {
+                fallbackCopy(url);
+            }
+        });
+
+        function fallbackCopy(text) {
+            const ta = document.createElement('textarea');
+            ta.value = text;
+            ta.style.position = 'fixed';
+            ta.style.opacity = '0';
+            document.body.appendChild(ta);
+            ta.select();
+            try {
+                document.execCommand('copy');
+                showToast('✅ 链接已复制，分享给团队成员即可同步', 'success');
+            } catch (e) {
+                showToast('请手动复制链接', 'warning');
+            }
+            document.body.removeChild(ta);
+        }
+
+        // ================================================================
         //  初始化
-        // ============================================================
+        // ================================================================
+        function init() {
+            const ok = initFirebase();
+            if (!ok) {
+                showToast('⚠️ Firebase 配置错误，请检查并刷新', 'error');
+            }
+            updateShareUrl();
+            loadInitialData();
+            switchPage('pageBatches');
+            console.log('🏭 生产预算管理系统 · 实时协作版 已启动');
+            console.log('📌 项目ID:', currentProjectId);
+            console.log('🔗 分享链接:', updateShareUrl());
+        }
 
-        loadBatchCategories();
-        loadMonthlyCategories();
-        loadData();
-        renderAll();
-        switchPage('pageBatches');
-
-        console.log('🏭 生产预算管理系统已启动，月度支出预算已支持导出。');
-        console.log('批次类别:', batchCategories);
-        console.log('月度类别:', monthlyCategories);
+        document.addEventListener('DOMContentLoaded', init);
     </script>
 </body>
 </html>
